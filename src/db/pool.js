@@ -114,9 +114,18 @@ function parseDbConfigFromDecryptedText(text) {
   const caPath = String(sslCaPathRaw || "").trim();
   const caB64 = String(sslCaB64Raw || "").trim();
   if (caB64) {
-    try {
-      ca = Buffer.from(caB64, "base64").toString("utf8");
-    } catch {}
+    const direct = caB64.includes("BEGIN CERTIFICATE") ? caB64 : "";
+    if (direct) {
+      ca = direct.replace(/\\n/g, "\n");
+    } else {
+      const compact = caB64.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+      try {
+        const decoded = Buffer.from(compact, "base64").toString("utf8").trim();
+        if (decoded.includes("BEGIN CERTIFICATE")) {
+          ca = decoded;
+        }
+      } catch {}
+    }
   } else if (caPath) {
     try {
       ca = fs.readFileSync(caPath, "utf8");
@@ -168,9 +177,18 @@ function resolveDbConfig() {
     const caPath = String(sslCaPathRaw || "").trim();
     const caB64 = String(sslCaB64Raw || "").trim();
     if (caB64) {
-      try {
-        ca = Buffer.from(caB64, "base64").toString("utf8");
-      } catch {}
+      const direct = caB64.includes("BEGIN CERTIFICATE") ? caB64 : "";
+      if (direct) {
+        ca = direct.replace(/\\n/g, "\n");
+      } else {
+        const compact = caB64.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+        try {
+          const decoded = Buffer.from(compact, "base64").toString("utf8").trim();
+          if (decoded.includes("BEGIN CERTIFICATE")) {
+            ca = decoded;
+          }
+        } catch {}
+      }
     } else if (caPath) {
       try {
         ca = fs.readFileSync(caPath, "utf8");
@@ -226,9 +244,18 @@ function resolveDbConfig() {
       const caPath = String(sslCaPathRaw || "").trim();
       const caB64 = String(sslCaB64Raw || "").trim();
       if (caB64) {
-        try {
-          ca = Buffer.from(caB64, "base64").toString("utf8");
-        } catch {}
+        const direct = caB64.includes("BEGIN CERTIFICATE") ? caB64 : "";
+        if (direct) {
+          ca = direct.replace(/\\n/g, "\n");
+        } else {
+          const compact = caB64.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+          try {
+            const decoded = Buffer.from(compact, "base64").toString("utf8").trim();
+            if (decoded.includes("BEGIN CERTIFICATE")) {
+              ca = decoded;
+            }
+          } catch {}
+        }
       } else if (caPath) {
         try {
           ca = fs.readFileSync(caPath, "utf8");
