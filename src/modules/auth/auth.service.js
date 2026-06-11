@@ -134,13 +134,16 @@ async function me(actorId) {
   return publicUser(user);
 }
 
-async function createSuperAdmin({ first_name, last_name, email, password, status }) {
+async function createSuperAdmin({ first_name, last_name, email, password, status }, { actorId } = {}) {
   const totalSuperAdmins = await countByRole("Super Admin");
   if (totalSuperAdmins > 0) {
-    const err = new Error("Super Admin already exists");
-    err.statusCode = 409;
-    err.code = "SUPER_ADMIN_EXISTS";
-    throw err;
+    if (!actorId) {
+      const err = new Error("Forbidden");
+      err.statusCode = 403;
+      err.code = "FORBIDDEN";
+      throw err;
+    }
+    await ensureActorIsSuperAdmin(actorId);
   }
 
   const firstName = ensureString(first_name, "first_name");
@@ -173,19 +176,25 @@ async function createSuperAdmin({ first_name, last_name, email, password, status
   return { user: publicUser(created), password: passwordPlain };
 }
 
-async function createAdminUser({ first_name, last_name, email, password, role, status }) {
+async function createAdminUser({ first_name, last_name, email, password, role, status }, { allowSuperAdmin = false } = {}) {
   const firstName = ensureString(first_name, "first_name");
   const lastName = ensureString(last_name, "last_name");
   const normalizedEmail = ensureEmail(email);
 
   const requestedRole = ensureString(role, "role");
-  if (requestedRole === "Super Admin") {
+  if (requestedRole === "Super Admin" && !allowSuperAdmin) {
     const err = new Error("Role not allowed");
     err.statusCode = 400;
     err.code = "ROLE_NOT_ALLOWED";
     throw err;
   }
-  if (!ADMIN_CREATABLE_ROLES.includes(requestedRole)) {
+  if (!allowSuperAdmin && !ADMIN_CREATABLE_ROLES.includes(requestedRole)) {
+    const err = new Error("Unknown role");
+    err.statusCode = 400;
+    err.code = "ROLE_INVALID";
+    throw err;
+  }
+  if (allowSuperAdmin && !ROLES.includes(requestedRole)) {
     const err = new Error("Unknown role");
     err.statusCode = 400;
     err.code = "ROLE_INVALID";
@@ -295,7 +304,7 @@ async function changePassword({ id, email, current_password, new_password }) {
 
 async function createAdminUserAsActor(actorId, payload) {
   await ensureActorIsSuperAdmin(actorId);
-  return createAdminUser(payload);
+  return createAdminUser(payload, { allowSuperAdmin: true });
 }
 
 async function updateAdminUser(actorId, id, { role, status }) {
@@ -318,7 +327,7 @@ async function updateAdminUser(actorId, id, { role, status }) {
   }
 
   const nextRole = ensureString(role, "role");
-  if (!ROLES.includes(nextRole) || nextRole === "Super Admin") {
+  if (!ROLES.includes(nextRole)) {
     const err = new Error("Role not allowed");
     err.statusCode = 400;
     err.code = "ROLE_NOT_ALLOWED";

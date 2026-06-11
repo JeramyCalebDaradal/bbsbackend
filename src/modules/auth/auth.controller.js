@@ -54,7 +54,7 @@ async function meController(req, res, next) {
 
 async function createSuperAdminController(req, res, next) {
   try {
-    const result = await createSuperAdmin(req.body || {});
+    const result = await createSuperAdmin(req.body || {}, { actorId: req.userId });
     res.status(201).json({ ok: true, ...result });
   } catch (err) {
     next(err);

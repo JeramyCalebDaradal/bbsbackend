@@ -504,7 +504,9 @@ async function migrateReportsView() {
       CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_appointments
     WHERE date_created >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY DATE_FORMAT(date_created, '%Y-%m'), LOWER(status)
+    GROUP BY
+      CONVERT(DATE_FORMAT(date_created, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci,
+      CONVERT(LOWER(status) USING utf8mb4) COLLATE utf8mb4_general_ci
     UNION ALL
     SELECT
       CONVERT('leads_monthly' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
@@ -515,7 +517,7 @@ async function migrateReportsView() {
       CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_leads
     WHERE created_at >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+    GROUP BY CONVERT(DATE_FORMAT(created_at, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci
     UNION ALL
     SELECT
       CONVERT('leads_monthly' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
@@ -526,7 +528,7 @@ async function migrateReportsView() {
       CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_leads
     WHERE created_at >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+    GROUP BY CONVERT(DATE_FORMAT(created_at, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci
     UNION ALL
     SELECT
       CONVERT('registrations_monthly' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
@@ -537,7 +539,7 @@ async function migrateReportsView() {
       CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_events_attendees
     WHERE date_registered >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY DATE_FORMAT(date_registered, '%Y-%m')
+    GROUP BY CONVERT(DATE_FORMAT(date_registered, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci
     UNION ALL
     SELECT
       CONVERT('articles_by_category' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
@@ -547,7 +549,7 @@ async function migrateReportsView() {
       NULL AS value2,
       CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_articles
-    GROUP BY category
+    GROUP BY CONVERT(category USING utf8mb4) COLLATE utf8mb4_general_ci
     UNION ALL
     SELECT
       CONVERT('events_registration' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
