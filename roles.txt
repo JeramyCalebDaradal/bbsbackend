@@ -1,0 +1,41 @@
+Super Admin
+
+    Full access to all pages (Overview, Appointments, Leads, Blog, Events, Newsletter, Reports, Settings).
+
+    Can manage other users and assign roles.
+
+Content Manager
+
+    Access: Blog/Articles, Newsletter, Events.
+
+    Purpose: Handles publishing, editing, and scheduling content.
+
+Sales Agent
+
+    Access: Leads, Appointments, Overview.
+
+    Purpose: Manages client leads and schedules meetings.
+
+Analyst
+
+    Access: Reports, Overview.
+
+    Purpose: Reviews performance metrics and generates insights.
+
+Event Coordinator
+
+    Access: Events, Appointments.
+
+    Purpose: Organizes and tracks event-related activities.
+
+Basic User
+
+    Access: Overview only.
+
+    Purpose: Read-only access for general visibility.
+
+System Admin
+
+    Access: Settings, Overview.
+
+    Purpose: Manages technical configurations but not business data.
