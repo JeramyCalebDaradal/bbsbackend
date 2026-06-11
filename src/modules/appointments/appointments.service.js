@@ -4,6 +4,9 @@ const {
   listAppointments,
   updateAppointmentById,
 } = require("./appointments.repository");
+const { pool } = require("../../db/pool");
+const { getSettingsRow } = require("../settings/settings.repository");
+const { insertLead } = require("../leads/leads.repository");
 
 const allowedServices = new Set([
   "Security Assessment",
@@ -169,22 +172,75 @@ async function createAppointment(payload) {
   const notes = normalizeNotes(payload?.notes);
   const addedBy = ensurePositiveInt(payload?.added_by, "added_by");
 
-  const id = await insertAppointment({
-    fullName,
-    email,
-    contactNumber,
-    service,
-    dateSet,
-    timeSet,
-    status,
-    location,
-    duration,
-    notes,
-    addedBy,
-  });
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
 
-  const created = await findById(id);
-  return publicAppointment(created);
+    const id = await insertAppointment(
+      {
+        fullName,
+        email,
+        contactNumber,
+        service,
+        dateSet,
+        timeSet,
+        status,
+        location,
+        duration,
+        notes,
+        addedBy,
+      },
+      { conn }
+    );
+
+    const created = await findById(id, { conn });
+    if (!created) {
+      const err = new Error("Appointment not found");
+      err.statusCode = 500;
+      err.code = "APPOINTMENT_MISSING";
+      throw err;
+    }
+
+    const settings = await getSettingsRow({ conn });
+    const autoCreateLead = Boolean(settings?.auto_create_lead_from_appointment);
+
+    let leadId = 0;
+    if (autoCreateLead) {
+      const leadNotes = [
+        `Auto-created from appointment #${created.id}`,
+        `Service: ${created.service}`,
+        `Date: ${created.date_set}`,
+        `Time: ${created.time_set}`,
+        created.location ? `Location: ${created.location}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      leadId = await insertLead(
+        {
+          fullName: created.full_name,
+          email: created.email,
+          contact: created.contact_number,
+          source: "Appointment",
+          status: "new",
+          followUp: null,
+          notes: leadNotes,
+          addedBy,
+        },
+        { conn }
+      );
+    }
+
+    await conn.commit();
+    return { appointment: publicAppointment(created), leadId: leadId || null };
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch {}
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 async function updateAppointment(id, payload) {

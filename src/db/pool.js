@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const fs = require("fs");
 const mysql = require("mysql2/promise");
 
 function requireEnv(name) {
@@ -90,13 +91,55 @@ function parseDbConfigFromDecryptedText(text) {
   const port = Number(obj?.DB_PORT || 3306);
   const password = obj?.DB_PASS ?? "";
 
+  const sslRequiredRaw = obj?.DB_SSL_REQUIRED ?? obj?.DB_SSL ?? obj?.DB_SSL_MODE ?? "";
+  const sslCaPathRaw = obj?.DB_SSL_CA_PATH ?? obj?.DB_SSL_CA ?? "";
+  const sslCaB64Raw = obj?.DB_SSL_CA_B64 ?? "";
+  const sslRejectRaw = obj?.DB_SSL_REJECT_UNAUTHORIZED ?? obj?.DB_SSL_VERIFY ?? "";
+  const sslVerifyServerCertRaw = obj?.DB_SSL_VERIFY_SERVER_CERT ?? "";
+
   if (!host || !user || !database || !Number.isFinite(port)) {
     const err = new Error("Decrypted DB config is missing required fields");
     err.code = "DB_ENC_FIELDS";
     throw err;
   }
 
-  return { host, port, user, password: String(password), database };
+  let sslRequired = false;
+  const sslText = String(sslRequiredRaw || "").trim().toLowerCase();
+  if (sslText) {
+    if (sslText === "true" || sslText === "1" || sslText === "required") sslRequired = true;
+    if (sslText === "verify_ca" || sslText === "verify_identity") sslRequired = true;
+  }
+
+  let ca = "";
+  const caPath = String(sslCaPathRaw || "").trim();
+  const caB64 = String(sslCaB64Raw || "").trim();
+  if (caB64) {
+    try {
+      ca = Buffer.from(caB64, "base64").toString("utf8");
+    } catch {}
+  } else if (caPath) {
+    try {
+      ca = fs.readFileSync(caPath, "utf8");
+    } catch {}
+  }
+
+  let rejectUnauthorized = false;
+  const rejectText = String(sslRejectRaw || "").trim().toLowerCase();
+  if (rejectText === "true" || rejectText === "1") rejectUnauthorized = true;
+  if (rejectText === "false" || rejectText === "0") rejectUnauthorized = false;
+  if (!rejectText && ca) rejectUnauthorized = true;
+
+  const verifyServerCertText = String(sslVerifyServerCertRaw || "").trim().toLowerCase();
+  if (verifyServerCertText === "true" || verifyServerCertText === "1") rejectUnauthorized = true;
+
+  const ssl = sslRequired
+    ? {
+        ...(ca ? { ca } : null),
+        rejectUnauthorized,
+      }
+    : undefined;
+
+  return { host, port, user, password: String(password), database, ssl };
 }
 
 function normalizePassphrase(value) {
@@ -108,12 +151,55 @@ function normalizePassphrase(value) {
 function resolveDbConfig() {
   const enc = String(process.env.DB_ENC || "").trim();
   if (!enc) {
+    const sslRequiredRaw = process.env.DB_SSL_REQUIRED ?? process.env.DB_SSL ?? process.env.DB_SSL_MODE ?? "";
+    const sslCaPathRaw = process.env.DB_SSL_CA_PATH ?? process.env.DB_SSL_CA ?? "";
+    const sslCaB64Raw = process.env.DB_SSL_CA_B64 ?? "";
+    const sslRejectRaw = process.env.DB_SSL_REJECT_UNAUTHORIZED ?? process.env.DB_SSL_VERIFY ?? "";
+    const sslVerifyServerCertRaw = process.env.DB_SSL_VERIFY_SERVER_CERT ?? "";
+
+    let sslRequired = false;
+    const sslText = String(sslRequiredRaw || "").trim().toLowerCase();
+    if (sslText) {
+      if (sslText === "true" || sslText === "1" || sslText === "required") sslRequired = true;
+      if (sslText === "verify_ca" || sslText === "verify_identity") sslRequired = true;
+    }
+
+    let ca = "";
+    const caPath = String(sslCaPathRaw || "").trim();
+    const caB64 = String(sslCaB64Raw || "").trim();
+    if (caB64) {
+      try {
+        ca = Buffer.from(caB64, "base64").toString("utf8");
+      } catch {}
+    } else if (caPath) {
+      try {
+        ca = fs.readFileSync(caPath, "utf8");
+      } catch {}
+    }
+
+    let rejectUnauthorized = false;
+    const rejectText = String(sslRejectRaw || "").trim().toLowerCase();
+    if (rejectText === "true" || rejectText === "1") rejectUnauthorized = true;
+    if (rejectText === "false" || rejectText === "0") rejectUnauthorized = false;
+    if (!rejectText && ca) rejectUnauthorized = true;
+
+    const verifyServerCertText = String(sslVerifyServerCertRaw || "").trim().toLowerCase();
+    if (verifyServerCertText === "true" || verifyServerCertText === "1") rejectUnauthorized = true;
+
+    const ssl = sslRequired
+      ? {
+          ...(ca ? { ca } : null),
+          rejectUnauthorized,
+        }
+      : undefined;
+
     return {
       host: requireEnv("DB_HOST"),
       port: Number(process.env.DB_PORT || 3306),
       user: requireEnv("DB_USER"),
       password: process.env.DB_PASS ?? "",
       database: requireEnv("DB_DATABASE"),
+      ssl,
     };
   }
 
@@ -123,12 +209,55 @@ function resolveDbConfig() {
     const hasRaw =
       Boolean(process.env.DB_HOST) && Boolean(process.env.DB_USER) && Boolean(process.env.DB_DATABASE);
     if (hasRaw) {
+      const sslRequiredRaw = process.env.DB_SSL_REQUIRED ?? process.env.DB_SSL ?? process.env.DB_SSL_MODE ?? "";
+      const sslCaPathRaw = process.env.DB_SSL_CA_PATH ?? process.env.DB_SSL_CA ?? "";
+      const sslCaB64Raw = process.env.DB_SSL_CA_B64 ?? "";
+      const sslRejectRaw = process.env.DB_SSL_REJECT_UNAUTHORIZED ?? process.env.DB_SSL_VERIFY ?? "";
+      const sslVerifyServerCertRaw = process.env.DB_SSL_VERIFY_SERVER_CERT ?? "";
+
+      let sslRequired = false;
+      const sslText = String(sslRequiredRaw || "").trim().toLowerCase();
+      if (sslText) {
+        if (sslText === "true" || sslText === "1" || sslText === "required") sslRequired = true;
+        if (sslText === "verify_ca" || sslText === "verify_identity") sslRequired = true;
+      }
+
+      let ca = "";
+      const caPath = String(sslCaPathRaw || "").trim();
+      const caB64 = String(sslCaB64Raw || "").trim();
+      if (caB64) {
+        try {
+          ca = Buffer.from(caB64, "base64").toString("utf8");
+        } catch {}
+      } else if (caPath) {
+        try {
+          ca = fs.readFileSync(caPath, "utf8");
+        } catch {}
+      }
+
+      let rejectUnauthorized = false;
+      const rejectText = String(sslRejectRaw || "").trim().toLowerCase();
+      if (rejectText === "true" || rejectText === "1") rejectUnauthorized = true;
+      if (rejectText === "false" || rejectText === "0") rejectUnauthorized = false;
+      if (!rejectText && ca) rejectUnauthorized = true;
+
+      const verifyServerCertText = String(sslVerifyServerCertRaw || "").trim().toLowerCase();
+      if (verifyServerCertText === "true" || verifyServerCertText === "1") rejectUnauthorized = true;
+
+      const ssl = sslRequired
+        ? {
+            ...(ca ? { ca } : null),
+            rejectUnauthorized,
+          }
+        : undefined;
+
       return {
         host: requireEnv("DB_HOST"),
         port: Number(process.env.DB_PORT || 3306),
         user: requireEnv("DB_USER"),
         password: process.env.DB_PASS ?? "",
         database: requireEnv("DB_DATABASE"),
+        ssl,
       };
     }
     const err = new Error("Missing required env var: DB_ENC_KEY");
@@ -149,6 +278,7 @@ const pool = {
       user: config.user,
       password: config.password,
       database: config.database,
+      ssl: config.ssl,
       namedPlaceholders: true,
     });
     try {

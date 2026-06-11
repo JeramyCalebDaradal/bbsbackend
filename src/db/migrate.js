@@ -460,102 +460,102 @@ async function migrateReportsView() {
   await pool.query(`
     CREATE OR REPLACE VIEW bbs_reports_view AS
     SELECT
-      'kpi' AS report_type,
-      'completion_rate' AS key1,
-      NULL AS key2,
+      CONVERT('kpi' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT('completion_rate' USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS key2,
       IFNULL(ROUND(100 * SUM(CASE WHEN LOWER(status) = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0)), 0) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_appointments
     UNION ALL
     SELECT
-      'kpi' AS report_type,
-      'lead_conversion_rate' AS key1,
-      NULL AS key2,
+      CONVERT('kpi' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT('lead_conversion_rate' USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS key2,
       IFNULL(ROUND(100 * SUM(CASE WHEN LOWER(status) = 'converted' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0)), 0) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_leads
     UNION ALL
     SELECT
-      'kpi' AS report_type,
-      'event_registrations_total' AS key1,
-      NULL AS key2,
+      CONVERT('kpi' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT('event_registrations_total' USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS key2,
       COUNT(*) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_events_attendees
     UNION ALL
     SELECT
-      'kpi' AS report_type,
-      'published_articles_total' AS key1,
-      NULL AS key2,
+      CONVERT('kpi' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT('published_articles_total' USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS key2,
       SUM(CASE WHEN LOWER(article_status) = 'published' THEN 1 ELSE 0 END) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_articles
     UNION ALL
     SELECT
-      'appointments_monthly' AS report_type,
-      DATE_FORMAT(date_created, '%Y-%m') AS key1,
-      LOWER(status) AS key2,
+      CONVERT('appointments_monthly' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT(DATE_FORMAT(date_created, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CONVERT(LOWER(status) USING utf8mb4) COLLATE utf8mb4_general_ci AS key2,
       COUNT(*) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_appointments
     WHERE date_created >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY YEAR(date_created), MONTH(date_created), LOWER(status)
+    GROUP BY DATE_FORMAT(date_created, '%Y-%m'), LOWER(status)
     UNION ALL
     SELECT
-      'leads_monthly' AS report_type,
-      DATE_FORMAT(created_at, '%Y-%m') AS key1,
-      'leads' AS key2,
+      CONVERT('leads_monthly' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT(DATE_FORMAT(created_at, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CONVERT('leads' USING utf8mb4) COLLATE utf8mb4_general_ci AS key2,
       COUNT(*) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_leads
     WHERE created_at >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY YEAR(created_at), MONTH(created_at)
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
     UNION ALL
     SELECT
-      'leads_monthly' AS report_type,
-      DATE_FORMAT(created_at, '%Y-%m') AS key1,
-      'converted' AS key2,
+      CONVERT('leads_monthly' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT(DATE_FORMAT(created_at, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CONVERT('converted' USING utf8mb4) COLLATE utf8mb4_general_ci AS key2,
       SUM(CASE WHEN LOWER(status) = 'converted' THEN 1 ELSE 0 END) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_leads
     WHERE created_at >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY YEAR(created_at), MONTH(created_at)
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
     UNION ALL
     SELECT
-      'registrations_monthly' AS report_type,
-      DATE_FORMAT(date_registered, '%Y-%m') AS key1,
-      'registered' AS key2,
+      CONVERT('registrations_monthly' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT(DATE_FORMAT(date_registered, '%Y-%m') USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CONVERT('registered' USING utf8mb4) COLLATE utf8mb4_general_ci AS key2,
       COUNT(*) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_events_attendees
     WHERE date_registered >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
-    GROUP BY YEAR(date_registered), MONTH(date_registered)
+    GROUP BY DATE_FORMAT(date_registered, '%Y-%m')
     UNION ALL
     SELECT
-      'articles_by_category' AS report_type,
-      category AS key1,
-      NULL AS key2,
+      CONVERT('articles_by_category' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT(category USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS key2,
       SUM(CASE WHEN LOWER(article_status) = 'published' THEN 1 ELSE 0 END) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM bbs_articles
     GROUP BY category
     UNION ALL
     SELECT
-      'events_registration' AS report_type,
-      e.title AS key1,
-      NULL AS key2,
+      CONVERT('events_registration' USING utf8mb4) COLLATE utf8mb4_general_ci AS report_type,
+      CONVERT(e.title USING utf8mb4) COLLATE utf8mb4_general_ci AS key1,
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS key2,
       IFNULL(a.registered, 0) AS value1,
       NULL AS value2,
-      NULL AS color
+      CAST(NULL AS CHAR) COLLATE utf8mb4_general_ci AS color
     FROM (
       SELECT id, title
       FROM bbs_events
@@ -743,6 +743,91 @@ async function migrateInfoVideos() {
   }
 }
 
+async function migrateSettings() {
+  const exists = await tableExists("bbs_settings");
+
+  if (!exists) {
+    await pool.query(`
+      CREATE TABLE bbs_settings (
+        id BIGINT UNSIGNED NOT NULL,
+        company_name VARCHAR(255) NOT NULL,
+        contact_email VARCHAR(255) NOT NULL,
+        contact_number VARCHAR(50) NOT NULL,
+        email_notifications_enabled TINYINT(1) NOT NULL DEFAULT 0,
+        auto_create_lead_from_appointment TINYINT(1) NOT NULL DEFAULT 0,
+        auto_followup_reminders_enabled TINYINT(1) NOT NULL DEFAULT 0,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    await pool.query(
+      `
+        INSERT INTO bbs_settings
+          (id, company_name, contact_email, contact_number, email_notifications_enabled, auto_create_lead_from_appointment, auto_followup_reminders_enabled)
+        VALUES
+          (1, 'Black Bear Securities', 'concierge@blackbearsecurities.com', '63286837594', 0, 0, 0)
+        ON DUPLICATE KEY UPDATE id = id
+      `
+    );
+    return;
+  }
+
+  const requiredColumns = [
+    ["company_name", "ALTER TABLE bbs_settings ADD COLUMN company_name VARCHAR(255) NOT NULL"],
+    ["contact_email", "ALTER TABLE bbs_settings ADD COLUMN contact_email VARCHAR(255) NOT NULL"],
+    ["contact_number", "ALTER TABLE bbs_settings ADD COLUMN contact_number VARCHAR(50) NOT NULL"],
+    [
+      "email_notifications_enabled",
+      "ALTER TABLE bbs_settings ADD COLUMN email_notifications_enabled TINYINT(1) NOT NULL DEFAULT 0",
+    ],
+    [
+      "auto_create_lead_from_appointment",
+      "ALTER TABLE bbs_settings ADD COLUMN auto_create_lead_from_appointment TINYINT(1) NOT NULL DEFAULT 0",
+    ],
+    [
+      "auto_followup_reminders_enabled",
+      "ALTER TABLE bbs_settings ADD COLUMN auto_followup_reminders_enabled TINYINT(1) NOT NULL DEFAULT 0",
+    ],
+    ["updated_at", "ALTER TABLE bbs_settings ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"],
+  ];
+
+  for (const [name, sql] of requiredColumns) {
+    if (!(await columnExists("bbs_settings", name))) {
+      await pool.query(sql);
+    }
+  }
+
+  const [rows] = await pool.query("SELECT id FROM bbs_settings WHERE id = 1 LIMIT 1");
+  if (!rows.length) {
+    await pool.query(
+      `
+        INSERT INTO bbs_settings
+          (id, company_name, contact_email, contact_number, email_notifications_enabled, auto_create_lead_from_appointment, auto_followup_reminders_enabled)
+        VALUES
+          (1, 'Black Bear Securities', 'concierge@blackbearsecurities.com', '63286837594', 0, 0, 0)
+        ON DUPLICATE KEY UPDATE id = id
+      `
+    );
+  }
+}
+
+async function migrateSettingsView() {
+  await pool.query(`
+    CREATE OR REPLACE VIEW bbs_settings_view AS
+    SELECT
+      id,
+      company_name,
+      contact_email,
+      contact_number,
+      email_notifications_enabled,
+      auto_create_lead_from_appointment,
+      auto_followup_reminders_enabled,
+      updated_at
+    FROM bbs_settings
+    WHERE id = 1;
+  `);
+}
+
 async function migratePagedListViews() {
   await pool.query(`
     CREATE OR REPLACE VIEW bbs_appointments_view AS
@@ -861,10 +946,12 @@ async function migrate() {
   await migrateLeads();
   await migrateDatasheets();
   await migrateInfoVideos();
+  await migrateSettings();
   await migratePagedListViews();
   await migrateReportsView();
   await migrateLogs();
   await migrateLogsView();
+  await migrateSettingsView();
 }
 
 migrate()

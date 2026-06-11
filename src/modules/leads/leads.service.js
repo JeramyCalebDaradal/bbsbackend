@@ -12,6 +12,7 @@ const allowedSources = new Set([
   "Newsletter signup",
   "Referral",
   "LinkedIn",
+  "Appointment",
 ]);
 
 const allowedStatuses = new Set(["new", "contacted", "qualified", "converted", "lost"]);

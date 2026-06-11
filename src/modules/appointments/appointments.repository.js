@@ -65,8 +65,9 @@ async function listAppointments({ page, status, query }) {
   return { rows, page: pageSafe, pageSize, total };
 }
 
-async function findById(id) {
-  const [rows] = await pool.query(
+async function findById(id, { conn } = {}) {
+  const db = conn || pool;
+  const [rows] = await db.query(
     `
       SELECT
         id,
@@ -103,8 +104,9 @@ async function insertAppointment({
   duration,
   notes,
   addedBy,
-}) {
-  const [result] = await pool.query(
+}, { conn } = {}) {
+  const db = conn || pool;
+  const [result] = await db.query(
     `
       INSERT INTO bbs_appointments
         (full_name, email, contact_number, service, date_set, time_set, status, location, duration, notes, added_by)

@@ -8,6 +8,7 @@ const { adminDatasheetsRouter, publicDatasheetsRouter } = require("../modules/da
 const { adminInfoVideosRouter, publicInfoVideosRouter } = require("../modules/infoVideos/infoVideos.routes");
 const { adminReportsRouter } = require("../modules/reports/reports.routes");
 const { adminLogsRouter } = require("../modules/logs/logs.routes");
+const { adminSettingsRouter, publicSettingsRouter } = require("../modules/settings/settings.routes");
 const { requireAuth } = require("../middleware/requireAuth");
 
 const apiRouter = express.Router();
@@ -26,9 +27,11 @@ apiRouter.use("/admin/datasheets", requireAuth, adminDatasheetsRouter);
 apiRouter.use("/admin/info-videos", requireAuth, adminInfoVideosRouter);
 apiRouter.use("/admin/reports", requireAuth, adminReportsRouter);
 apiRouter.use("/admin/logs", requireAuth, adminLogsRouter);
+apiRouter.use("/admin/settings", requireAuth, adminSettingsRouter);
 apiRouter.use("/events", publicEventsRouter);
 apiRouter.use("/articles", publicArticlesRouter);
 apiRouter.use("/datasheets", publicDatasheetsRouter);
 apiRouter.use("/info-videos", publicInfoVideosRouter);
+apiRouter.use("/settings", publicSettingsRouter);
 
 module.exports = { apiRouter };

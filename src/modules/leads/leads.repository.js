@@ -85,8 +85,9 @@ async function findById(id) {
   return rows[0] || null;
 }
 
-async function insertLead({ fullName, email, contact, source, status, followUp, notes, addedBy }) {
-  const [result] = await pool.query(
+async function insertLead({ fullName, email, contact, source, status, followUp, notes, addedBy }, { conn } = {}) {
+  const db = conn || pool;
+  const [result] = await db.query(
     `
       INSERT INTO bbs_leads
         (full_name, email, contact, source, status, follow_up, notes, added_by)

@@ -12,13 +12,17 @@ async function listAppointmentsController(req, res, next) {
 
 async function createAppointmentController(req, res, next) {
   try {
-    const appointment = await createAppointment(req.body || {});
+    const result = await createAppointment(req.body || {});
+    const appointment = result?.appointment;
     try {
       if (req.userId) {
         await recordLog({ userId: req.userId, action: created(`a new appointment: ${appointment.full_name}`) });
+        if (result?.leadId) {
+          await recordLog({ userId: req.userId, action: created(`a new lead (auto): ${appointment.full_name}`) });
+        }
       }
     } catch {}
-    res.status(201).json({ ok: true, appointment });
+    res.status(201).json({ ok: true, appointment, leadId: result?.leadId || null });
   } catch (err) {
     next(err);
   }
