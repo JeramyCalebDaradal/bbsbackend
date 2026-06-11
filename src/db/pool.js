@@ -299,6 +299,15 @@ function resolveDbConfig() {
 const pool = {
   query: async (...args) => {
     const config = resolveDbConfig();
+    if (config?.ssl?.rejectUnauthorized) {
+      const caText = typeof config?.ssl?.ca === "string" ? config.ssl.ca.trim() : "";
+      const looksLikePem = caText.includes("BEGIN CERTIFICATE") && caText.includes("END CERTIFICATE");
+      if (!looksLikePem || caText.length < 200) {
+        const err = new Error("SSL is enabled but CA certificate is missing/invalid. Check DB_SSL_CA_B64 (must be Aiven CA cert) and DB_SSL_REJECT_UNAUTHORIZED.");
+        err.code = "DB_SSL_CA_INVALID";
+        throw err;
+      }
+    }
     const conn = await mysql.createConnection({
       host: config.host,
       port: config.port,
