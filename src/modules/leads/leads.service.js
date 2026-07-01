@@ -90,7 +90,7 @@ function normalizeFollowUp(value) {
   const v = String(value || "").trim();
   if (!v) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-    const err = new Error("follow_up must be YYYY-MM-DD");
+    const err = new Error("Invalid input");
     err.statusCode = 400;
     err.code = "VALIDATION_ERROR";
     throw err;

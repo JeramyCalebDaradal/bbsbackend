@@ -755,6 +755,7 @@ async function migrateSettings() {
         company_name VARCHAR(255) NOT NULL,
         contact_email VARCHAR(255) NOT NULL,
         contact_number VARCHAR(50) NOT NULL,
+        info_videos_enabled TINYINT(1) NOT NULL DEFAULT 1,
         email_notifications_enabled TINYINT(1) NOT NULL DEFAULT 0,
         auto_create_lead_from_appointment TINYINT(1) NOT NULL DEFAULT 0,
         auto_followup_reminders_enabled TINYINT(1) NOT NULL DEFAULT 0,
@@ -765,9 +766,9 @@ async function migrateSettings() {
     await pool.query(
       `
         INSERT INTO bbs_settings
-          (id, company_name, contact_email, contact_number, email_notifications_enabled, auto_create_lead_from_appointment, auto_followup_reminders_enabled)
+          (id, company_name, contact_email, contact_number, info_videos_enabled, email_notifications_enabled, auto_create_lead_from_appointment, auto_followup_reminders_enabled)
         VALUES
-          (1, 'Black Bear Securities', 'concierge@blackbearsecurities.com', '63286837594', 0, 0, 0)
+          (1, 'Black Bear Securities', 'concierge@blackbearsecurities.com', '63286837594', 1, 0, 0, 0)
         ON DUPLICATE KEY UPDATE id = id
       `
     );
@@ -778,6 +779,7 @@ async function migrateSettings() {
     ["company_name", "ALTER TABLE bbs_settings ADD COLUMN company_name VARCHAR(255) NOT NULL"],
     ["contact_email", "ALTER TABLE bbs_settings ADD COLUMN contact_email VARCHAR(255) NOT NULL"],
     ["contact_number", "ALTER TABLE bbs_settings ADD COLUMN contact_number VARCHAR(50) NOT NULL"],
+    ["info_videos_enabled", "ALTER TABLE bbs_settings ADD COLUMN info_videos_enabled TINYINT(1) NOT NULL DEFAULT 1"],
     [
       "email_notifications_enabled",
       "ALTER TABLE bbs_settings ADD COLUMN email_notifications_enabled TINYINT(1) NOT NULL DEFAULT 0",
@@ -804,9 +806,9 @@ async function migrateSettings() {
     await pool.query(
       `
         INSERT INTO bbs_settings
-          (id, company_name, contact_email, contact_number, email_notifications_enabled, auto_create_lead_from_appointment, auto_followup_reminders_enabled)
+          (id, company_name, contact_email, contact_number, info_videos_enabled, email_notifications_enabled, auto_create_lead_from_appointment, auto_followup_reminders_enabled)
         VALUES
-          (1, 'Black Bear Securities', 'concierge@blackbearsecurities.com', '63286837594', 0, 0, 0)
+          (1, 'Black Bear Securities', 'concierge@blackbearsecurities.com', '63286837594', 1, 0, 0, 0)
         ON DUPLICATE KEY UPDATE id = id
       `
     );
@@ -821,6 +823,7 @@ async function migrateSettingsView() {
       company_name,
       contact_email,
       contact_number,
+      info_videos_enabled,
       email_notifications_enabled,
       auto_create_lead_from_appointment,
       auto_followup_reminders_enabled,

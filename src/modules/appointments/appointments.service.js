@@ -239,7 +239,7 @@ async function createAppointment(payload) {
     } catch {}
     throw err;
   } finally {
-    conn.release();
+    try { await conn.end(); } catch {}
   }
 }
 

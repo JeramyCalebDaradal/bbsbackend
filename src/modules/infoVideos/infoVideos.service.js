@@ -5,6 +5,7 @@ const {
   listInfoVideos,
   updateInfoVideoById,
 } = require("./infoVideos.repository");
+const { normalizeFileField, signUrl, signUrls, deleteFromS3 } = require("../../utils/bucketStorage");
 
 const allowedStatuses = new Set(["active", "inactive"]);
 
@@ -81,11 +82,13 @@ async function getInfoVideos(query) {
   const q = String(query?.q || "").trim();
 
   const result = await listInfoVideos({ page, status, query: q, onlyActive: false });
+  const videos = result.rows.map(publicInfoVideo);
+  await signUrls(videos, ["file_path"]);
   return {
     page: result.page,
     pageSize: result.pageSize,
     total: result.total,
-    videos: result.rows.map(publicInfoVideo),
+    videos,
   };
 }
 
@@ -94,24 +97,41 @@ async function getPublicInfoVideos(query) {
   const q = String(query?.q || "").trim();
 
   const result = await listInfoVideos({ page, status: "active", query: q, onlyActive: true });
+  const videos = result.rows.map(publicInfoVideo);
+  await signUrls(videos, ["file_path"]);
   return {
     page: result.page,
     pageSize: result.pageSize,
     total: result.total,
-    videos: result.rows.map(publicInfoVideo),
+    videos,
   };
 }
 
 async function createInfoVideo(payload) {
   const title = ensureString(payload?.title, "title");
-  const filePath = ensureString(payload?.file_path, "file_path");
+  const fileInput = ensureString(payload?.file_path, "file_path");
   const description = normalizeDescription(payload?.description);
   const status = normalizeStatus(payload?.status);
   const addedBy = ensurePositiveInt(payload?.added_by, "added_by");
 
+  const normalized = await normalizeFileField({
+    value: fileInput,
+    dirKey: "infoVideosFiles",
+    contextLabel: "Informational video error",
+    allowedMimes: {
+      "video/mp4": "mp4",
+      "video/webm": "webm",
+      "video/quicktime": "mov",
+    },
+    maxBytes: 25 * 1024 * 1024,
+  });
+  const filePath = normalized.filePath;
+
   const id = await insertInfoVideo({ title, description, filePath, status, addedBy });
   const created = await findById(id);
-  return publicInfoVideo(created);
+  const video = publicInfoVideo(created);
+  if (video.file_path) video.file_path = await signUrl(video.file_path);
+  return video;
 }
 
 async function updateInfoVideo(id, payload) {
@@ -125,13 +145,34 @@ async function updateInfoVideo(id, payload) {
   }
 
   const title = ensureString(payload?.title, "title");
-  const filePath = ensureString(payload?.file_path, "file_path");
+  const fileInput = ensureString(payload?.file_path, "file_path");
   const description = normalizeDescription(payload?.description);
   const status = normalizeStatus(payload?.status);
 
+  const normalized = await normalizeFileField({
+    value: fileInput,
+    dirKey: "infoVideosFiles",
+    contextLabel: "Informational video error",
+    allowedMimes: {
+      "video/mp4": "mp4",
+      "video/webm": "webm",
+      "video/quicktime": "mov",
+    },
+    maxBytes: 25 * 1024 * 1024,
+  });
+  const filePath = normalized.filePath;
+
+  // Clean up old S3 file if replaced
+  const oldFilePath = String(existing?.file_path || "").trim();
+  if (oldFilePath && oldFilePath !== filePath) {
+    deleteFromS3(oldFilePath);
+  }
+
   await updateInfoVideoById(targetId, { title, description, filePath, status });
   const updated = await findById(targetId);
-  return publicInfoVideo(updated);
+  const video = publicInfoVideo(updated);
+  if (video.file_path) video.file_path = await signUrl(video.file_path);
+  return video;
 }
 
 async function deleteInfoVideo(id) {
@@ -142,6 +183,12 @@ async function deleteInfoVideo(id) {
     err.statusCode = 404;
     err.code = "NOT_FOUND";
     throw err;
+  }
+
+  // Clean up S3 file before deleting record
+  const fileKey = String(existing?.file_path || "").trim();
+  if (fileKey) {
+    deleteFromS3(fileKey);
   }
 
   const affected = await deleteInfoVideoById(targetId);

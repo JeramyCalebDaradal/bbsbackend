@@ -5,6 +5,7 @@ const {
   listDatasheets,
   updateDatasheetById,
 } = require("./datasheets.repository");
+const { normalizeFileField, signUrl, signUrls, deleteFromS3 } = require("../../utils/bucketStorage");
 
 const allowedStatuses = new Set(["active", "inactive"]);
 
@@ -94,11 +95,13 @@ async function getDatasheets(query) {
   const q = String(query?.q || "").trim();
 
   const result = await listDatasheets({ page, status, query: q, onlyActive: false });
+  const datasheets = result.rows.map(publicDatasheet);
+  await signUrls(datasheets, ["file_path"]);
   return {
     page: result.page,
     pageSize: result.pageSize,
     total: result.total,
-    datasheets: result.rows.map(publicDatasheet),
+    datasheets,
   };
 }
 
@@ -107,25 +110,41 @@ async function getPublicDatasheets(query) {
   const q = String(query?.q || "").trim();
 
   const result = await listDatasheets({ page, status: "active", query: q, onlyActive: true });
+  const datasheets = result.rows.map(publicDatasheet);
+  await signUrls(datasheets, ["file_path"]);
   return {
     page: result.page,
     pageSize: result.pageSize,
     total: result.total,
-    datasheets: result.rows.map(publicDatasheet),
+    datasheets,
   };
 }
 
 async function createDatasheet(payload) {
   const title = ensureString(payload?.title, "title");
-  const filePath = ensureString(payload?.file_path, "file_path");
+  const fileInput = ensureString(payload?.file_path, "file_path");
   const description = normalizeDescription(payload?.description);
-  const size = normalizeSize(payload?.size);
+  let size = normalizeSize(payload?.size);
   const status = normalizeStatus(payload?.status);
   const addedBy = ensurePositiveInt(payload?.added_by, "added_by");
 
+  const normalized = await normalizeFileField({
+    value: fileInput,
+    dirKey: "datasheetsFiles",
+    contextLabel: "Datasheet error",
+    allowedMimes: { "application/pdf": "pdf" },
+    maxBytes: 20 * 1024 * 1024,
+  });
+  const filePath = normalized.filePath;
+  if (normalized.sizeBytes !== null) {
+    size = normalized.sizeBytes;
+  }
+
   const id = await insertDatasheet({ title, description, filePath, size, status, addedBy });
   const created = await findById(id);
-  return publicDatasheet(created);
+  const ds = publicDatasheet(created);
+  if (ds.file_path) ds.file_path = await signUrl(ds.file_path);
+  return ds;
 }
 
 async function updateDatasheet(id, payload) {
@@ -139,14 +158,34 @@ async function updateDatasheet(id, payload) {
   }
 
   const title = ensureString(payload?.title, "title");
-  const filePath = ensureString(payload?.file_path, "file_path");
+  const fileInput = ensureString(payload?.file_path, "file_path");
   const description = normalizeDescription(payload?.description);
-  const size = normalizeSize(payload?.size);
+  let size = normalizeSize(payload?.size);
   const status = normalizeStatus(payload?.status);
+
+  const normalized = await normalizeFileField({
+    value: fileInput,
+    dirKey: "datasheetsFiles",
+    contextLabel: "Datasheet error",
+    allowedMimes: { "application/pdf": "pdf" },
+    maxBytes: 20 * 1024 * 1024,
+  });
+  const filePath = normalized.filePath;
+  if (normalized.sizeBytes !== null) {
+    size = normalized.sizeBytes;
+  }
+
+  // Clean up old S3 file if replaced
+  const oldFilePath = String(existing?.file_path || "").trim();
+  if (oldFilePath && oldFilePath !== filePath) {
+    deleteFromS3(oldFilePath);
+  }
 
   await updateDatasheetById(targetId, { title, description, filePath, size, status });
   const updated = await findById(targetId);
-  return publicDatasheet(updated);
+  const ds = publicDatasheet(updated);
+  if (ds.file_path) ds.file_path = await signUrl(ds.file_path);
+  return ds;
 }
 
 async function deleteDatasheet(id) {
@@ -157,6 +196,12 @@ async function deleteDatasheet(id) {
     err.statusCode = 404;
     err.code = "NOT_FOUND";
     throw err;
+  }
+
+  // Clean up S3 file before deleting record
+  const fileKey = String(existing?.file_path || "").trim();
+  if (fileKey) {
+    deleteFromS3(fileKey);
   }
 
   const affected = await deleteDatasheetById(targetId);

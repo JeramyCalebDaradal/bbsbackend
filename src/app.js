@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const cookieParser = require("cookie-parser");
 
 const { notFound } = require("./middleware/notFound");
 const { errorHandler } = require("./middleware/errorHandler");
@@ -19,8 +20,9 @@ function createApp() {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: "2mb" }));
+  app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser());
   app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
   app.get("/health", (req, res) => {

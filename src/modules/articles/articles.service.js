@@ -8,6 +8,7 @@ const {
   listPublishedArticles,
   updateArticleById,
 } = require("./articles.repository");
+const { normalizeImageField, signUrl, signUrls, deleteFromS3 } = require("../../utils/bucketStorage");
 
 function ensureString(value, fieldName) {
   const v = String(value || "").trim();
@@ -92,7 +93,7 @@ function normalizeStatus(value) {
   if (raw === "Draft") return "Draft";
 
   {
-    const err = new Error("article_status is invalid");
+    const err = new Error("Invalid input");
     err.statusCode = 400;
     err.code = "VALIDATION_ERROR";
     throw err;
@@ -148,11 +149,13 @@ async function getArticles(query) {
   const page = normalizePage(query?.page);
   const q = String(query?.q || "").trim();
   const result = await listArticles({ page, query: q });
+  const articles = result.rows.map(publicArticle);
+  await signUrls(articles, ["featured_image"]);
   return {
     page: result.page,
     pageSize: result.pageSize,
     total: result.total,
-    articles: result.rows.map(publicArticle),
+    articles,
   };
 }
 
@@ -160,7 +163,12 @@ async function createArticle(payload) {
   const title = ensureString(payload?.title, "title");
   const urlSlug = normalizeSlug(payload?.url_slug);
   const category = ensureString(payload?.category, "category");
-  const featuredImage = normalizeFeaturedImage(payload?.featured_image);
+  const featuredImageRaw = normalizeFeaturedImage(payload?.featured_image);
+  const featuredImage = await normalizeImageField({
+    value: featuredImageRaw,
+    dirKey: "articlesFeaturedImage",
+    contextLabel: "Article post error",
+  });
   const content = ensureString(payload?.content, "content");
   const articleStatus = normalizeStatus(payload?.article_status);
   const publishDate = normalizePublishDate(payload?.publish_date, articleStatus);
@@ -188,7 +196,9 @@ async function createArticle(payload) {
   });
 
   const created = await findById(id);
-  return publicArticle(created);
+  const article = publicArticle(created);
+  if (article.featured_image) article.featured_image = await signUrl(article.featured_image);
+  return article;
 }
 
 async function updateArticle(id, payload) {
@@ -211,7 +221,19 @@ async function updateArticle(id, payload) {
   const title = ensureString(payload?.title, "title");
   const urlSlug = normalizeSlug(payload?.url_slug);
   const category = ensureString(payload?.category, "category");
-  const featuredImage = normalizeFeaturedImage(payload?.featured_image);
+  const featuredImageRaw = normalizeFeaturedImage(payload?.featured_image);
+  const featuredImage = await normalizeImageField({
+    value: featuredImageRaw,
+    dirKey: "articlesFeaturedImage",
+    contextLabel: "Article post error",
+  });
+
+  // Clean up old S3 image if replaced
+  const oldImageKey = String(existing?.featured_image || "").trim();
+  if (oldImageKey && oldImageKey !== featuredImage) {
+    deleteFromS3(oldImageKey);
+  }
+
   const content = ensureString(payload?.content, "content");
   const articleStatus = normalizeStatus(payload?.article_status);
   const publishDate = normalizePublishDate(payload?.publish_date, articleStatus);
@@ -237,7 +259,9 @@ async function updateArticle(id, payload) {
   });
 
   const updated = await findById(articleId);
-  return publicArticle(updated);
+  const article = publicArticle(updated);
+  if (article.featured_image) article.featured_image = await signUrl(article.featured_image);
+  return article;
 }
 
 async function deleteArticle(id) {
@@ -257,6 +281,12 @@ async function deleteArticle(id) {
     throw err;
   }
 
+  // Clean up S3 image before deleting record
+  const imageKey = String(existing?.featured_image || "").trim();
+  if (imageKey) {
+    deleteFromS3(imageKey);
+  }
+
   await deleteArticleById(articleId);
   return publicArticle(existing);
 }
@@ -265,11 +295,13 @@ async function getPublishedArticles(query) {
   const page = normalizePage(query?.page);
   const q = String(query?.q || "").trim();
   const result = await listPublishedArticles({ page, query: q });
+  const articles = result.rows.map(publicArticle);
+  await signUrls(articles, ["featured_image"]);
   return {
     page: result.page,
     pageSize: result.pageSize,
     total: result.total,
-    articles: result.rows.map(publicArticle),
+    articles,
   };
 }
 
@@ -282,7 +314,9 @@ async function getPublishedArticleBySlug(slug) {
     err.code = "NOT_FOUND";
     throw err;
   }
-  return publicArticle(row);
+  const article = publicArticle(row);
+  if (article.featured_image) article.featured_image = await signUrl(article.featured_image);
+  return article;
 }
 
 module.exports = {

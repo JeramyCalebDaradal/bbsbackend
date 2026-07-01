@@ -19,10 +19,11 @@ async function listLeads({ page, status, query }) {
     params.status = statusValue;
   }
 
-  const q = String(query || "").trim();
+  const q = String(query || "").trim().slice(0, 200);
   if (q) {
     where.push("(LOWER(full_name) LIKE :qLike OR LOWER(email) LIKE :qLike)");
-    params.qLike = `%${q.toLowerCase()}%`;
+    const escaped = q.replace(/[%_]/g, "\\$&");
+    params.qLike = `%${escaped.toLowerCase()}%`;
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";

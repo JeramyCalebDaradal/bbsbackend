@@ -13,6 +13,19 @@ const {
   updateUserPasswordById,
   updateUserRoleStatusById,
 } = require("./auth.repository");
+const {
+  issueTokens,
+  rotateRefreshToken,
+  revokeAllSessions,
+  revokeFamily,
+} = require("../../services/tokenService");
+
+const REFRESH_COOKIE_NAME = "refreshToken";
+const REFRESH_COOKIE_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+// ──────────────────────────────────────────────
+//  Helpers
+// ──────────────────────────────────────────────
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
@@ -76,6 +89,36 @@ function publicUser(userRow) {
   };
 }
 
+/**
+ * Set the refresh token as an HttpOnly cookie on the response object.
+ */
+function setRefreshCookie(res, refreshToken) {
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/api/v1/auth",
+    maxAge: REFRESH_COOKIE_TTL_MS,
+  });
+}
+
+/**
+ * Clear the refresh cookie.
+ */
+function clearRefreshCookie(res) {
+  res.cookie(REFRESH_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/api/v1/auth",
+    maxAge: 0,
+  });
+}
+
+// ──────────────────────────────────────────────
+//  Login — updated to issue token pair
+// ──────────────────────────────────────────────
+
 async function login({ email, password }, { sender } = {}) {
   const normalizedEmail = ensureEmail(email);
   const passwordPlain = ensureString(password, "password");
@@ -104,8 +147,15 @@ async function login({ email, password }, { sender } = {}) {
     throw err;
   }
 
+  // ── NEW: Issue token pair ──
+  const { accessToken, refreshToken } = await issueTokens({
+    id: user.id,
+    role: user.role,
+  });
+
+  // ── LEGACY: Still issue old-style token for backward compat ──
   const publicU = publicUser(user);
-  const token = issueUserToken({
+  const legacyToken = issueUserToken({
     userId: publicU.id,
     role: publicU.role,
     firstName: publicU.first_name,
@@ -113,8 +163,22 @@ async function login({ email, password }, { sender } = {}) {
     email: publicU.email,
     sender,
   });
-  return { user: publicU, token: token.token, token_expires_at: new Date(token.expiresAtMs).toISOString() };
+
+  return {
+    user: publicU,
+    // New token system
+    accessToken,
+    // Legacy token system (backward compat)
+    token: legacyToken.tokenEnc,
+    token_expires_at: new Date(legacyToken.expiresAtMs).toISOString(),
+    // Bind the refresh token to the response so the controller can set the cookie
+    _refreshToken: refreshToken,
+  };
 }
+
+// ──────────────────────────────────────────────
+//  Me (unchanged)
+// ──────────────────────────────────────────────
 
 async function me(actorId) {
   const id = Number(actorId);
@@ -133,6 +197,62 @@ async function me(actorId) {
   }
   return publicUser(user);
 }
+
+// ──────────────────────────────────────────────
+//  Refresh
+// ──────────────────────────────────────────────
+
+async function refreshSession(refreshToken, ipHint) {
+  if (!refreshToken) {
+    const err = new Error("Refresh token required");
+    err.statusCode = 401;
+    err.code = "REFRESH_REQUIRED";
+    throw err;
+  }
+
+  const { accessToken, refreshToken: newRefreshToken } = await rotateRefreshToken(
+    null,
+    refreshToken,
+    ipHint
+  );
+
+  return { accessToken, refreshToken: newRefreshToken };
+}
+
+/**
+ * Refresh using a known userId (preferred path — called from controller).
+ */
+async function refreshSessionForUser(userId, refreshToken, ipHint) {
+  if (!userId) {
+    const err = new Error("Unauthorized");
+    err.statusCode = 401;
+    err.code = "UNAUTHORIZED";
+    throw err;
+  }
+  if (!refreshToken) {
+    const err = new Error("Refresh token required");
+    err.statusCode = 401;
+    err.code = "REFRESH_REQUIRED";
+    throw err;
+  }
+
+  const result = await rotateRefreshToken(userId, refreshToken, ipHint);
+  return result;
+}
+
+// ──────────────────────────────────────────────
+//  Logout
+// ──────────────────────────────────────────────
+
+async function logout(userId) {
+  if (userId) {
+    await revokeAllSessions(userId);
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Super Admin creation (unchanged)
+// ──────────────────────────────────────────────
 
 async function createSuperAdmin({ first_name, last_name, email, password, status }, { actorId } = {}) {
   const totalSuperAdmins = await countByRole("Super Admin");
@@ -269,6 +389,10 @@ async function updateProfile({ id, email, first_name, last_name }) {
   return publicUser(updated);
 }
 
+// ──────────────────────────────────────────────
+//  Change password — now revokes all sessions
+// ──────────────────────────────────────────────
+
 async function changePassword({ id, email, current_password, new_password }) {
   const userId = ensureId(id);
   const normalizedEmail = ensureEmail(email);
@@ -299,6 +423,10 @@ async function changePassword({ id, email, current_password, new_password }) {
 
   const nextHash = sha256(newPasswordPlain);
   await updateUserPasswordById(userId, nextHash);
+
+  // Revoke ALL sessions — user must log in again everywhere
+  await revokeAllSessions(userId);
+
   return { ok: true };
 }
 
@@ -306,6 +434,10 @@ async function createAdminUserAsActor(actorId, payload) {
   await ensureActorIsSuperAdmin(actorId);
   return createAdminUser(payload, { allowSuperAdmin: true });
 }
+
+// ──────────────────────────────────────────────
+//  Update admin user — now revokes sessions on role/status change
+// ──────────────────────────────────────────────
 
 async function updateAdminUser(actorId, id, { role, status }) {
   await ensureActorIsSuperAdmin(actorId);
@@ -337,6 +469,11 @@ async function updateAdminUser(actorId, id, { role, status }) {
   const nextStatus = normalizeStatus(status);
 
   await updateUserRoleStatusById(targetId, { role: nextRole, status: nextStatus });
+
+  // If role or status changed, revoke all sessions so the user's
+  // permissions are enforced immediately (no stale 72h legacy tokens).
+  await revokeAllSessions(targetId);
+
   const updated = await findById(targetId);
   return publicUser(updated);
 }
@@ -344,10 +481,16 @@ async function updateAdminUser(actorId, id, { role, status }) {
 module.exports = {
   login,
   me,
+  refreshSession,
+  refreshSessionForUser,
+  logout,
   createSuperAdmin,
   createAdminUserAsActor,
   getUsers,
   updateProfile,
   changePassword,
   updateAdminUser,
+  // Helpers for controllers
+  setRefreshCookie,
+  clearRefreshCookie,
 };

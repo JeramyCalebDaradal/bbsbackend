@@ -7,6 +7,7 @@ const {
   listEventsPaged,
   updateEventById,
 } = require("./events.repository");
+const { normalizeImageField, signUrl, signUrls, deleteFromS3 } = require("../../utils/bucketStorage");
 
 function ensureString(value, fieldName) {
   const v = String(value || "").trim();
@@ -46,7 +47,7 @@ function normalizeLocationType(value) {
   const v = String(value || "").trim().toLowerCase();
   if (v === "online") return "online";
   if (v === "in person") return "in person";
-  const err = new Error("location_type must be 'online' or 'in person'");
+  const err = new Error("Invalid input");
   err.statusCode = 400;
   err.code = "VALIDATION_ERROR";
   throw err;
@@ -138,24 +139,33 @@ function normalizePage(value) {
 
 async function getEvents() {
   const rows = await listEvents();
-  return rows.map(publicEvent);
+  const events = rows.map(publicEvent);
+  await signUrls(events, ["preview_image"]);
+  return events;
 }
 
 async function getEventsPaged(query) {
   const page = normalizePage(query?.page);
   const q = String(query?.q || "").trim();
   const result = await listEventsPaged({ page, query: q });
+  const events = result.rows.map(publicEvent);
+  await signUrls(events, ["preview_image"]);
   return {
     page: result.page,
     pageSize: result.pageSize,
     total: result.total,
-    events: result.rows.map(publicEvent),
+    events,
   };
 }
 
 async function createEvent(payload) {
   const title = ensureString(payload?.title, "title");
-  const previewImage = normalizePreviewImage(payload?.preview_image);
+  const previewImageRaw = normalizePreviewImage(payload?.preview_image);
+  const previewImage = await normalizeImageField({
+    value: previewImageRaw,
+    dirKey: "eventsPreviewImage",
+    contextLabel: "Event error",
+  });
   const date = ensureString(payload?.date, "date");
   const time = ensureString(payload?.time, "time");
   const locationType = normalizeLocationType(payload?.location_type);
@@ -185,7 +195,9 @@ async function createEvent(payload) {
   });
 
   const created = await findById(id);
-  return publicEvent(created);
+  const event = publicEvent(created);
+  if (event.preview_image) event.preview_image = await signUrl(event.preview_image);
+  return event;
 }
 
 async function updateEvent(id, payload) {
@@ -199,7 +211,19 @@ async function updateEvent(id, payload) {
   }
 
   const title = ensureString(payload?.title, "title");
-  const previewImage = normalizePreviewImage(payload?.preview_image);
+  const previewImageRaw = normalizePreviewImage(payload?.preview_image);
+  const previewImage = await normalizeImageField({
+    value: previewImageRaw,
+    dirKey: "eventsPreviewImage",
+    contextLabel: "Event error",
+  });
+
+  // Clean up old S3 image if replaced
+  const oldImageKey = String(existing?.preview_image || "").trim();
+  if (oldImageKey && oldImageKey !== previewImage) {
+    deleteFromS3(oldImageKey);
+  }
+
   const date = ensureString(payload?.date, "date");
   const time = ensureString(payload?.time, "time");
   const locationType = normalizeLocationType(payload?.location_type);
@@ -225,7 +249,9 @@ async function updateEvent(id, payload) {
   });
 
   const updated = await findById(eventId);
-  return publicEvent(updated);
+  const event = publicEvent(updated);
+  if (event.preview_image) event.preview_image = await signUrl(event.preview_image);
+  return event;
 }
 
 async function getEventAttendees(id) {

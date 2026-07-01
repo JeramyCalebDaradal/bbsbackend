@@ -23,10 +23,11 @@ async function listInfoVideos({ page, status, query, onlyActive = false }) {
     }
   }
 
-  const q = String(query || "").trim();
+  const q = String(query || "").trim().slice(0, 200);
   if (q) {
     where.push("(LOWER(title) LIKE :qLike OR LOWER(file_path) LIKE :qLike)");
-    params.qLike = `%${q.toLowerCase()}%`;
+    const escaped = q.replace(/[%_]/g, "\\$&");
+    params.qLike = `%${escaped.toLowerCase()}%`;
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";

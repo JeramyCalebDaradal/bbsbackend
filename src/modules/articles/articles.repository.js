@@ -13,12 +13,13 @@ async function listArticles({ page, query }) {
   const where = [];
   const params = {};
 
-  const q = String(query || "").trim();
+  const q = String(query || "").trim().slice(0, 200);
   if (q) {
     where.push(
       "(LOWER(title) LIKE :qLike OR LOWER(category) LIKE :qLike OR LOWER(url_slug) LIKE :qLike)"
     );
-    params.qLike = `%${q.toLowerCase()}%`;
+    const escaped = q.replace(/[%_]/g, "\\$&");
+    params.qLike = `%${escaped.toLowerCase()}%`;
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -109,12 +110,13 @@ async function listPublishedArticles({ page, query }) {
   const where = ["LOWER(article_status) = 'published'"];
   const params = {};
 
-  const q = String(query || "").trim();
+  const q = String(query || "").trim().slice(0, 200);
   if (q) {
     where.push(
       "(LOWER(title) LIKE :qLike OR LOWER(category) LIKE :qLike OR LOWER(url_slug) LIKE :qLike)"
     );
-    params.qLike = `%${q.toLowerCase()}%`;
+    const escaped = q.replace(/[%_]/g, "\\$&");
+    params.qLike = `%${escaped.toLowerCase()}%`;
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";

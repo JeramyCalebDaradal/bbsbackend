@@ -46,10 +46,11 @@ async function listLogs({ page, pageSize, role, action, fromDate, toDate, query 
     params.toDate = toDate;
   }
 
-  const q = String(query || "").trim();
+  const q = String(query || "").trim().slice(0, 200);
   if (q) {
     where.push("(full_name LIKE :qLike OR CAST(user_id AS CHAR) LIKE :qLike)");
-    params.qLike = `%${q}%`;
+    const escaped = q.replace(/[%_]/g, "\\$&");
+    params.qLike = `%${escaped}%`;
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";

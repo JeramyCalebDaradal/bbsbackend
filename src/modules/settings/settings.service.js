@@ -35,6 +35,7 @@ function publicSettings(row) {
     company_name: row.company_name,
     contact_email: row.contact_email,
     contact_number: row.contact_number,
+    info_videos_enabled: Boolean(row.info_videos_enabled),
   };
 }
 
@@ -44,6 +45,7 @@ function adminSettings(row) {
     company_name: row.company_name,
     contact_email: row.contact_email,
     contact_number: row.contact_number,
+    info_videos_enabled: Boolean(row.info_videos_enabled),
     email_notifications_enabled: Boolean(row.email_notifications_enabled),
     auto_create_lead_from_appointment: Boolean(row.auto_create_lead_from_appointment),
     auto_followup_reminders_enabled: Boolean(row.auto_followup_reminders_enabled),
@@ -80,6 +82,7 @@ async function updateAdminSettings(payload) {
     "company_name",
     "contact_email",
     "contact_number",
+    "info_videos_enabled",
     "auto_create_lead_from_appointment",
   ]);
 
@@ -106,6 +109,8 @@ async function updateAdminSettings(payload) {
     "contact_email" in body ? ensureEmail(body.contact_email) : String(existing.contact_email || "");
   const nextContactNumber =
     "contact_number" in body ? ensureString(body.contact_number, "contact_number") : String(existing.contact_number || "");
+  const nextInfoVideosEnabled =
+    "info_videos_enabled" in body ? normalizeBool(body.info_videos_enabled) : Boolean(existing.info_videos_enabled);
   const nextAutoCreate =
     "auto_create_lead_from_appointment" in body
       ? normalizeBool(body.auto_create_lead_from_appointment)
@@ -115,6 +120,7 @@ async function updateAdminSettings(payload) {
     companyName: nextCompanyName,
     contactEmail: nextContactEmail,
     contactNumber: nextContactNumber,
+    infoVideosEnabled: nextInfoVideosEnabled,
     autoCreateLeadFromAppointment: nextAutoCreate,
   });
 

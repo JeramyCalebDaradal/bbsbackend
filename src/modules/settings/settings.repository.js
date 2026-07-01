@@ -9,6 +9,7 @@ async function getSettingsRow({ conn } = {}) {
         company_name,
         contact_email,
         contact_number,
+        info_videos_enabled,
         email_notifications_enabled,
         auto_create_lead_from_appointment,
         auto_followup_reminders_enabled,
@@ -21,7 +22,7 @@ async function getSettingsRow({ conn } = {}) {
 }
 
 async function updateSettings(
-  { companyName, contactEmail, contactNumber, autoCreateLeadFromAppointment },
+  { companyName, contactEmail, contactNumber, infoVideosEnabled, autoCreateLeadFromAppointment },
   { conn } = {}
 ) {
   const db = conn || pool;
@@ -32,11 +33,12 @@ async function updateSettings(
         company_name = ?,
         contact_email = ?,
         contact_number = ?,
+        info_videos_enabled = ?,
         auto_create_lead_from_appointment = ?
       WHERE id = 1
       LIMIT 1
     `,
-    [companyName, contactEmail, contactNumber, autoCreateLeadFromAppointment ? 1 : 0]
+    [companyName, contactEmail, contactNumber, infoVideosEnabled ? 1 : 0, autoCreateLeadFromAppointment ? 1 : 0]
   );
   return Number(result.affectedRows || 0);
 }
