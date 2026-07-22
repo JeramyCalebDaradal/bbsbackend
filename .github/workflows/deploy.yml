@@ -1,0 +1,50 @@
+name: Deploy BBSBackend
+
+on:
+  push:
+    branches: [main]
+
+env:
+  IMAGE_NAME: bbsbackend
+  CONTAINER_NAME: bbsbackend
+  REGISTRY_DIR: /opt/bbs/images
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:latest \
+                       -t ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+                       .
+
+      - name: Save image to tarball
+        run: |
+          docker save ${{ env.IMAGE_NAME }}:${{ github.sha }} | gzip > ${{ env.IMAGE_NAME }}-${{ github.sha }}.tar.gz
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy files to server
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "mkdir -p ${{ env.REGISTRY_DIR }}"
+          scp -i ~/.ssh/deploy_key \
+            ${{ env.IMAGE_NAME }}-${{ github.sha }}.tar.gz \
+            deploy.sh \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.REGISTRY_DIR }}/
+
+      - name: Deploy container on server
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            bash ${{ env.REGISTRY_DIR }}/deploy.sh \
+            ${{ github.sha }} \
+            ${{ env.REGISTRY_DIR }}
