@@ -59,6 +59,9 @@ function edited(text) {
 function removed(text) {
   return buildAction("Removed", text);
 }
+function loggedIn(text) {
+  return buildAction("Logged in", text);
+}
 
 async function recordLog({ userId, action }) {
   const uid = ensurePositiveInt(userId, "user_id");
@@ -107,5 +110,5 @@ async function getLogs(query) {
   };
 }
 
-module.exports = { recordLog, getLogs, created, edited, removed };
+module.exports = { recordLog, getLogs, created, edited, removed, loggedIn };
 

@@ -1,0 +1,101 @@
+server {
+    server_tokens off;
+
+    listen 80;
+    server_name bbsdev.qzz.io;
+
+    location /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    server_tokens off;
+    listen 443 ssl;
+    server_name bbsdev.qzz.io;
+
+    client_max_body_size 60m;
+
+    ssl_certificate /etc/letsencrypt/live/bbsdev.qzz.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bbsdev.qzz.io/privkey.pem;
+
+    # ----------------------------------------------
+    #  PL22: API path obfuscation
+    #  Public clients use /x42/api/* and /x42/admin/*
+    #  Direct /api/* and /admin/* return 404 (hide real routes)
+    # ----------------------------------------------
+
+    # Block direct access to real API routes — prevents enumeration
+    location /api/ {
+        return 404;
+    }
+
+    location /admin/ {
+        return 404;
+    }
+
+    # Public-facing obfuscated API path
+    # Maps: /x42/api/v1/auth/login ? backend /api/v1/auth/login
+    location /x42/api/ {
+        rewrite ^/x42/api/v1/(.*)$ /api/v1/$1 break;
+        proxy_pass http://bbsbackend:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        post_action @log_api_request;
+    }
+
+    # Public-facing obfuscated admin path
+    # Maps: /x42/admin/users ? backend /admin/users
+    location /x42/admin/ {
+        rewrite ^/x42/admin/(.*)$ /admin/$1 break;
+        proxy_pass http://bbsbackend:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        post_action @log_api_request;
+    }
+
+    # ----------------------------------------------
+    #  Uploads (static files)
+    # ----------------------------------------------
+    location /uploads/ {
+        alias /usr/share/nginx/html/uploads/;
+    }
+
+    # ----------------------------------------------
+    #  Frontend SPA proxy
+    # ----------------------------------------------
+    location / {
+        proxy_pass http://bbsfrontend:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location @log_api_request {
+        internal;
+        proxy_method POST;
+        proxy_set_header Content-Type "application/json";
+        proxy_set_header X-Log-Method       "$request_method";
+        proxy_set_header X-Log-Url          "$request_uri";
+        proxy_set_header X-Log-Ip           "$remote_addr";
+        proxy_set_header X-Log-Status       "$status";
+        proxy_set_header X-Log-Time         "$time_iso8601";
+        proxy_set_header X-Log-Auth         "$http_authorization";
+        proxy_set_header X-Log-Ua           "$http_user_agent";
+        proxy_set_header X-Log-Ms           "$request_time";
+        proxy_set_header X-Log-Referer      "$http_referer";
+        rewrite ^ /api/v1/api-logs/ingest break;
+        proxy_pass http://bbsbackend:4000;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 5s;
+    }
+}

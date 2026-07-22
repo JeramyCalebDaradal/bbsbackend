@@ -9,6 +9,7 @@ const {
   updateArticleById,
 } = require("./articles.repository");
 const { normalizeImageField, signUrl, signUrls, deleteFromS3 } = require("../../utils/bucketStorage");
+const { sanitizeHtml } = require("../../utils/sanitizeHtml");
 
 function ensureString(value, fieldName) {
   const v = String(value || "").trim();
@@ -169,7 +170,7 @@ async function createArticle(payload) {
     dirKey: "articlesFeaturedImage",
     contextLabel: "Article post error",
   });
-  const content = ensureString(payload?.content, "content");
+  const content = sanitizeHtml(ensureString(payload?.content, "content"));
   const articleStatus = normalizeStatus(payload?.article_status);
   const publishDate = normalizePublishDate(payload?.publish_date, articleStatus);
   const tags = normalizeTags(payload?.tags);
@@ -234,7 +235,7 @@ async function updateArticle(id, payload) {
     deleteFromS3(oldImageKey);
   }
 
-  const content = ensureString(payload?.content, "content");
+  const content = sanitizeHtml(ensureString(payload?.content, "content"));
   const articleStatus = normalizeStatus(payload?.article_status);
   const publishDate = normalizePublishDate(payload?.publish_date, articleStatus);
   const tags = normalizeTags(payload?.tags);

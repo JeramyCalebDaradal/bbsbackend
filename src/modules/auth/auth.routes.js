@@ -27,7 +27,7 @@ const authRouter = express.Router();
 
 authRouter.post("/login", validate(loginSchema), loginController);
 authRouter.post("/refresh", refreshController);
-authRouter.post("/logout", requireAuth, logoutController);
+authRouter.post("/logout", logoutController);  // No requireAuth — identifies user via refresh token cookie
 authRouter.get("/me", requireAuth, meController);
 
 function optionalAuth(req, res, next) {

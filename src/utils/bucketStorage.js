@@ -230,10 +230,13 @@ function extractS3Key(value) {
   const v = String(value || "").trim();
   if (!v) return "";
 
+  // Strip query string (e.g. from presigned S3 URLs like ?X-Amz-Signature=...)
+  const base = v.split("?")[0];
+
   // If it contains /uploads/, extract everything after it
-  const uploadsIdx = v.indexOf("/uploads/");
+  const uploadsIdx = base.indexOf("/uploads/");
   if (uploadsIdx !== -1) {
-    return v.slice(uploadsIdx + 9);
+    return base.slice(uploadsIdx + 9);
   }
 
   // If it contains a known dir prefix, extract from there
@@ -244,14 +247,14 @@ function extractS3Key(value) {
     "info-videos/files/",
   ];
   for (const dir of knownDirs) {
-    const idx = v.indexOf(dir);
+    const idx = base.indexOf(dir);
     if (idx !== -1) {
-      return v.slice(idx);
+      return base.slice(idx);
     }
   }
 
   // Assume it's already a clean S3 key
-  return v;
+  return base;
 }
 
 // ── Normalize image field (upload if data URL, extract key otherwise) ──

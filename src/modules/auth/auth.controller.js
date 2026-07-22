@@ -13,8 +13,8 @@ const {
   setRefreshCookie,
   clearRefreshCookie,
 } = require("./auth.service");
-const { created, edited, recordLog } = require("../logs/logs.service");
-const { requireAuth } = require("../../middleware/requireAuth");
+const { created, edited, loggedIn, recordLog } = require("../logs/logs.service");
+const { findTokenByValue } = require("../../services/tokenService");
 
 function normalizeOrigin(value) {
   const v = String(value || "").trim();
@@ -48,6 +48,15 @@ async function loginController(req, res, next) {
     if (result._refreshToken) {
       setRefreshCookie(res, result._refreshToken);
     }
+
+    // Log the login
+    try {
+      const user = result?.user;
+      if (user?.id) {
+        const name = `${String(user.first_name || "").trim()} ${String(user.last_name || "").trim()}`.trim();
+        await recordLog({ userId: user.id, action: loggedIn(name || `user #${user.id}`) });
+      }
+    } catch {}
 
     // Return access token + user data (but NOT the raw refresh token)
     const { _refreshToken, ...safe } = result;
@@ -118,7 +127,30 @@ async function refreshController(req, res, next) {
 
 async function logoutController(req, res, next) {
   try {
-    await logout(req.userId);
+    let userId = req.userId;
+
+    // If no access token (requireAuth wasn't used), try to identify user
+    // from the refresh token cookie
+    if (!userId) {
+      const refreshToken = req.cookies?.refreshToken;
+      if (refreshToken) {
+        try {
+          const token = await findTokenByValue(refreshToken);
+          if (token) {
+            userId = token.user_id;
+          }
+        } catch {}
+      }
+    }
+
+    // Log the logout
+    try {
+      if (userId) {
+        await recordLog({ userId, action: "Logged out" });
+      }
+    } catch {}
+
+    await logout(userId);
 
     // Clear the refresh cookie
     clearRefreshCookie(res);

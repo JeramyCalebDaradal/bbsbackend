@@ -8,6 +8,7 @@ const { adminDatasheetsRouter, publicDatasheetsRouter } = require("../modules/da
 const { adminInfoVideosRouter, publicInfoVideosRouter } = require("../modules/infoVideos/infoVideos.routes");
 const { adminReportsRouter } = require("../modules/reports/reports.routes");
 const { adminLogsRouter } = require("../modules/logs/logs.routes");
+const { apiLogsIngestRouter, adminApiLogsRouter } = require("../modules/apiLogs/apiLogs.routes");
 const { adminSettingsRouter, publicSettingsRouter } = require("../modules/settings/settings.routes");
 const { requireAuth } = require("../middleware/requireAuth");
 
@@ -27,6 +28,8 @@ apiRouter.use("/admin/datasheets", requireAuth, adminDatasheetsRouter);
 apiRouter.use("/admin/info-videos", requireAuth, adminInfoVideosRouter);
 apiRouter.use("/admin/reports", requireAuth, adminReportsRouter);
 apiRouter.use("/admin/logs", requireAuth, adminLogsRouter);
+apiRouter.use("/api-logs", apiLogsIngestRouter);
+apiRouter.use("/admin/api-logs", requireAuth, adminApiLogsRouter);
 apiRouter.use("/admin/settings", requireAuth, adminSettingsRouter);
 apiRouter.use("/events", publicEventsRouter);
 apiRouter.use("/articles", publicArticlesRouter);

@@ -690,6 +690,87 @@ async function migrateDatasheets() {
   }
 }
 
+async function migrateApiLogs() {
+  const exists = await tableExists("bbs_api_logs");
+
+  if (!exists) {
+    await pool.query(`
+      CREATE TABLE bbs_api_logs (
+        id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        url               VARCHAR(2048) NOT NULL,
+        method            VARCHAR(10) NOT NULL,
+        ip_address        VARCHAR(45) NOT NULL,
+        status_code       INT UNSIGNED NOT NULL,
+        user_id           BIGINT UNSIGNED NULL,
+        authorization_masked VARCHAR(255) NULL,
+        user_agent        VARCHAR(512) NULL,
+        response_time_ms  INT UNSIGNED NULL,
+        referer           VARCHAR(2048) NULL,
+        time_sent         TIME NOT NULL,
+        date_sent         DATE NOT NULL,
+        PRIMARY KEY (id),
+        KEY idx_api_logs_date_time (date_sent, time_sent),
+        KEY idx_api_logs_user_id (user_id),
+        KEY idx_api_logs_status (status_code)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    return;
+  }
+
+  const requiredColumns = [
+    ["url", "ALTER TABLE bbs_api_logs ADD COLUMN url VARCHAR(2048) NOT NULL"],
+    ["method", "ALTER TABLE bbs_api_logs ADD COLUMN method VARCHAR(10) NOT NULL"],
+    ["ip_address", "ALTER TABLE bbs_api_logs ADD COLUMN ip_address VARCHAR(45) NOT NULL"],
+    ["status_code", "ALTER TABLE bbs_api_logs ADD COLUMN status_code INT UNSIGNED NOT NULL"],
+    ["user_id", "ALTER TABLE bbs_api_logs ADD COLUMN user_id BIGINT UNSIGNED NULL"],
+    ["authorization_masked", "ALTER TABLE bbs_api_logs ADD COLUMN authorization_masked VARCHAR(255) NULL"],
+    ["user_agent", "ALTER TABLE bbs_api_logs ADD COLUMN user_agent VARCHAR(512) NULL"],
+    ["response_time_ms", "ALTER TABLE bbs_api_logs ADD COLUMN response_time_ms INT UNSIGNED NULL"],
+    ["referer", "ALTER TABLE bbs_api_logs ADD COLUMN referer VARCHAR(2048) NULL"],
+    ["time_sent", "ALTER TABLE bbs_api_logs ADD COLUMN time_sent TIME NOT NULL"],
+    ["date_sent", "ALTER TABLE bbs_api_logs ADD COLUMN date_sent DATE NOT NULL"],
+  ];
+
+  for (const [name, sql] of requiredColumns) {
+    if (!(await columnExists("bbs_api_logs", name))) {
+      await pool.query(sql);
+    }
+  }
+
+  if (!(await indexExists("bbs_api_logs", "idx_api_logs_date_time"))) {
+    await pool.query("ALTER TABLE bbs_api_logs ADD KEY idx_api_logs_date_time (date_sent, time_sent)");
+  }
+  if (!(await indexExists("bbs_api_logs", "idx_api_logs_user_id"))) {
+    await pool.query("ALTER TABLE bbs_api_logs ADD KEY idx_api_logs_user_id (user_id)");
+  }
+  if (!(await indexExists("bbs_api_logs", "idx_api_logs_status"))) {
+    await pool.query("ALTER TABLE bbs_api_logs ADD KEY idx_api_logs_status (status_code)");
+  }
+}
+
+async function migrateApiLogsView() {
+  await pool.query(`
+    CREATE OR REPLACE VIEW bbs_api_logs_view AS
+    SELECT
+      l.id,
+      l.url,
+      l.method,
+      l.ip_address,
+      l.status_code,
+      l.user_id,
+      a.email AS user_email,
+      CONCAT(a.first_name, ' ', a.last_name) AS user_full_name,
+      l.authorization_masked,
+      l.user_agent,
+      l.response_time_ms,
+      l.referer,
+      l.time_sent,
+      l.date_sent
+    FROM bbs_api_logs l
+    LEFT JOIN auth a ON a.id = l.user_id;
+  `);
+}
+
 async function migrateInfoVideos() {
   const exists = await tableExists("bbs_info_videos");
 
@@ -954,6 +1035,8 @@ async function migrate() {
   await migrateSettings();
   await migratePagedListViews();
   await migrateReportsView();
+  await migrateApiLogs();
+  await migrateApiLogsView();
   await migrateLogs();
   await migrateLogsView();
   await migrateSettingsView();
