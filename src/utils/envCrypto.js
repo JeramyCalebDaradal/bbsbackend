@@ -53,8 +53,9 @@ function getEnvDecrypted(name) {
   const value = process.env[name];
   if (!value) return undefined;
 
-  const passphrase = process.env.DB_ENC_KEY || process.env.DB_KEY;
-  if (!passphrase) return value; // Can't decrypt, return as-is
+  const rawKey = process.env.DB_ENC_KEY || process.env.DB_KEY;
+  if (!rawKey) return value; // Can't decrypt, return as-is
+  const passphrase = rawKey.replace("e", "");
 
   try {
     return decryptEnv({ encrypted: value, passphrase });
