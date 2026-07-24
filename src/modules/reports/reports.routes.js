@@ -1,13 +1,12 @@
 const express = require("express");
 const { getReportsController } = require("./reports.controller");
-const { requireAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
 
 const adminReportsRouter = express.Router();
 
-const REPORT_ROLES = ["Super Admin", "Analyst"];
+const REPORT_ROLES = ["Administrator", "Analyst"];
 
-adminReportsRouter.get("/", requireAuth, requireRole(...REPORT_ROLES), getReportsController);
+adminReportsRouter.use(requireRole(...REPORT_ROLES));
+adminReportsRouter.get("/", getReportsController);
 
 module.exports = { adminReportsRouter };
-

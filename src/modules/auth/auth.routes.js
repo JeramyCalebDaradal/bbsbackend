@@ -12,8 +12,9 @@ const {
   updateProfileController,
 } = require("./auth.controller");
 const { ADMIN_CREATABLE_ROLES, ROLES } = require("../../constants/roles");
-const { requireAuth } = require("../../middleware/requireAuth");
+const { requireAuth, requireEntraAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
+const { requirePageAccess } = require("../../middleware/requirePageAccess");
 const { validate } = require("../../middleware/validate");
 const {
   loginSchema,
@@ -28,6 +29,15 @@ const authRouter = express.Router();
 authRouter.post("/login", validate(loginSchema), loginController);
 authRouter.post("/refresh", refreshController);
 authRouter.post("/logout", logoutController);  // No requireAuth — identifies user via refresh token cookie
+authRouter.get("/entra/me", requireEntraAuth, (req, res) => {
+  res.status(200).json({
+    ok: true,
+    tid: req.entra?.tid || null,
+    oid: req.entra?.oid || null,
+    roles: req.entra?.roles || [],
+    upn: req.entra?.upn || null,
+  });
+});
 authRouter.get("/me", requireAuth, meController);
 
 function optionalAuth(req, res, next) {
@@ -42,13 +52,12 @@ authRouter.put("/password", requireAuth, validate(changePasswordSchema), changeP
 
 const adminRouter = express.Router();
 
-adminRouter.get("/roles", (req, res) => {
-  const isSuperAdmin = String(req.userRole || "") === "Super Admin";
-  res.status(200).json({ ok: true, roles: isSuperAdmin ? ROLES : ADMIN_CREATABLE_ROLES });
+adminRouter.get("/roles", requirePageAccess("roles"), (req, res) => {
+  res.status(200).json({ ok: true, roles: ["Administrator", "ContentManager", "Analyst", "Default"] });
 });
 
-adminRouter.get("/users", requireAuth, requireRole("Super Admin"), listUsersController);
-adminRouter.post("/users", requireAuth, validate(createAdminUserSchema), createAdminUserController);
-adminRouter.put("/users/:id", requireAuth, updateAdminUserController);
+adminRouter.get("/users", requirePageAccess("users"), requireRole("Administrator"), listUsersController);
+adminRouter.post("/users", requirePageAccess("users"), requireRole("Administrator"), validate(createAdminUserSchema), createAdminUserController);
+adminRouter.put("/users/:id", requirePageAccess("users"), requireRole("Administrator"), updateAdminUserController);
 
 module.exports = { authRouter, adminRouter };

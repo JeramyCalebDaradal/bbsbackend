@@ -8,16 +8,16 @@ const {
   updateArticleController,
 } = require("./articles.controller");
 const { validate } = require("../../middleware/validate");
-const { requireAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
 const { createArticleSchema, updateArticleSchema } = require("../../validators/articleSchemas");
 
 const adminArticlesRouter = express.Router();
 const publicArticlesRouter = express.Router();
 
-const ARTICLE_ROLES = ["Super Admin", "Content Manager"];
+const ARTICLE_ROLES = ["Administrator", "ContentManager"];
 
-adminArticlesRouter.get("/", requireAuth, requireRole(...ARTICLE_ROLES), listArticlesController);
+adminArticlesRouter.use(requireRole(...ARTICLE_ROLES));
+adminArticlesRouter.get("/", listArticlesController);
 adminArticlesRouter.post("/", validate(createArticleSchema), createArticleController);
 adminArticlesRouter.put("/:id", validate(updateArticleSchema), updateArticleController);
 adminArticlesRouter.delete("/:id", deleteArticleController);

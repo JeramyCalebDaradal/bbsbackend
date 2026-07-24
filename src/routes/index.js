@@ -10,7 +10,9 @@ const { adminReportsRouter } = require("../modules/reports/reports.routes");
 const { adminLogsRouter } = require("../modules/logs/logs.routes");
 const { apiLogsIngestRouter, adminApiLogsRouter } = require("../modules/apiLogs/apiLogs.routes");
 const { adminSettingsRouter, publicSettingsRouter } = require("../modules/settings/settings.routes");
-const { requireAuth } = require("../middleware/requireAuth");
+const { adminRoleConfigRouter } = require("../modules/roleConfig/roleConfig.routes");
+const { requireDashboardAuth } = require("../middleware/requireAuth");
+const { requirePageAccess } = require("../middleware/requirePageAccess");
 
 const apiRouter = express.Router();
 
@@ -19,18 +21,19 @@ apiRouter.get("/", (req, res) => {
 });
 
 apiRouter.use("/auth", authRouter);
-apiRouter.use("/admin", requireAuth, adminRouter);
-apiRouter.use("/admin/events", requireAuth, adminEventsRouter);
-apiRouter.use("/admin/articles", requireAuth, adminArticlesRouter);
-apiRouter.use("/admin/appointments", requireAuth, adminAppointmentsRouter);
-apiRouter.use("/admin/leads", requireAuth, adminLeadsRouter);
-apiRouter.use("/admin/datasheets", requireAuth, adminDatasheetsRouter);
-apiRouter.use("/admin/info-videos", requireAuth, adminInfoVideosRouter);
-apiRouter.use("/admin/reports", requireAuth, adminReportsRouter);
-apiRouter.use("/admin/logs", requireAuth, adminLogsRouter);
+apiRouter.use("/admin", requireDashboardAuth, adminRouter);
+apiRouter.use("/admin/events", requireDashboardAuth, requirePageAccess("events"), adminEventsRouter);
+apiRouter.use("/admin/articles", requireDashboardAuth, requirePageAccess("articles"), adminArticlesRouter);
+apiRouter.use("/admin/appointments", requireDashboardAuth, requirePageAccess("appointments"), adminAppointmentsRouter);
+apiRouter.use("/admin/leads", requireDashboardAuth, requirePageAccess("leads"), adminLeadsRouter);
+apiRouter.use("/admin/datasheets", requireDashboardAuth, requirePageAccess("datasheets"), adminDatasheetsRouter);
+apiRouter.use("/admin/info-videos", requireDashboardAuth, requirePageAccess("videos"), adminInfoVideosRouter);
+apiRouter.use("/admin/reports", requireDashboardAuth, requirePageAccess("reports"), adminReportsRouter);
+apiRouter.use("/admin/logs", requireDashboardAuth, requirePageAccess("logs"), adminLogsRouter);
 apiRouter.use("/api-logs", apiLogsIngestRouter);
-apiRouter.use("/admin/api-logs", requireAuth, adminApiLogsRouter);
-apiRouter.use("/admin/settings", requireAuth, adminSettingsRouter);
+apiRouter.use("/admin/api-logs", requireDashboardAuth, requirePageAccess("api-logs"), adminApiLogsRouter);
+apiRouter.use("/admin/settings", requireDashboardAuth, requirePageAccess("settings"), adminSettingsRouter);
+apiRouter.use("/admin/role-config", requireDashboardAuth, requirePageAccess("roles"), adminRoleConfigRouter);
 apiRouter.use("/events", publicEventsRouter);
 apiRouter.use("/articles", publicArticlesRouter);
 apiRouter.use("/datasheets", publicDatasheetsRouter);

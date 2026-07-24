@@ -4,7 +4,6 @@ const {
   getPublicSettingsController,
   updateAdminSettingsController,
 } = require("./settings.controller");
-const { requireAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
 const { validate } = require("../../middleware/validate");
 const { z } = require("zod");
@@ -19,15 +18,16 @@ const updateSettingsSchema = z.object({
   auto_followup_reminders_enabled: z.boolean().optional(),
 });
 
-const SETTINGS_ROLES = ["Super Admin", "System Admin"];
+const SETTINGS_ROLES = ["Administrator"];
 
 const publicSettingsRouter = express.Router();
 publicSettingsRouter.get("/", getPublicSettingsController);
 
 const adminSettingsRouter = express.Router();
 
-adminSettingsRouter.get("/", requireAuth, requireRole(...SETTINGS_ROLES), getAdminSettingsController);
+adminSettingsRouter.use(requireRole(...SETTINGS_ROLES));
+adminSettingsRouter.get("/", getAdminSettingsController);
 
-adminSettingsRouter.put("/", requireAuth, requireRole(...SETTINGS_ROLES), validate(updateSettingsSchema), updateAdminSettingsController);
+adminSettingsRouter.put("/", validate(updateSettingsSchema), updateAdminSettingsController);
 
 module.exports = { publicSettingsRouter, adminSettingsRouter };

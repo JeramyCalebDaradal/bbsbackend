@@ -8,16 +8,16 @@ const {
   updateEventController,
 } = require("./events.controller");
 const { validate } = require("../../middleware/validate");
-const { requireAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
 const { createEventSchema, updateEventSchema, registerForEventSchema } = require("../../validators/eventSchemas");
 
 const adminEventsRouter = express.Router();
 const publicEventsRouter = express.Router();
 
-const EVENT_ROLES = ["Super Admin", "Content Manager", "Event Coordinator"];
+const EVENT_ROLES = ["Administrator", "ContentManager"];
 
-adminEventsRouter.get("/", requireAuth, requireRole(...EVENT_ROLES), listAdminEventsController);
+adminEventsRouter.use(requireRole(...EVENT_ROLES));
+adminEventsRouter.get("/", listAdminEventsController);
 adminEventsRouter.post("/", validate(createEventSchema), createEventController);
 adminEventsRouter.put("/:id", validate(updateEventSchema), updateEventController);
 adminEventsRouter.get("/:id/attendees", listEventAttendeesController);

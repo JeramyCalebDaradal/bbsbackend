@@ -5,15 +5,15 @@ const {
   updateAppointmentController,
 } = require("./appointments.controller");
 const { validate } = require("../../middleware/validate");
-const { requireAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
 const { createAppointmentSchema, updateAppointmentSchema } = require("../../validators/appointmentSchemas");
 
 const adminAppointmentsRouter = express.Router();
 
-const APPOINTMENT_ROLES = ["Super Admin", "Sales Agent", "Event Coordinator"];
+const APPOINTMENT_ROLES = ["Administrator"];
 
-adminAppointmentsRouter.get("/", requireAuth, requireRole(...APPOINTMENT_ROLES), listAppointmentsController);
+adminAppointmentsRouter.use(requireRole(...APPOINTMENT_ROLES));
+adminAppointmentsRouter.get("/", listAppointmentsController);
 adminAppointmentsRouter.post("/", validate(createAppointmentSchema), createAppointmentController);
 adminAppointmentsRouter.put("/:id", validate(updateAppointmentSchema), updateAppointmentController);
 

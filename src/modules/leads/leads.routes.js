@@ -6,15 +6,15 @@ const {
   updateLeadController,
 } = require("./leads.controller");
 const { validate } = require("../../middleware/validate");
-const { requireAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
 const { createLeadSchema, updateLeadSchema } = require("../../validators/leadSchemas");
 
 const adminLeadsRouter = express.Router();
 
-const LEAD_ROLES = ["Super Admin", "Sales Agent"];
+const LEAD_ROLES = ["Administrator", "Analyst"];
 
-adminLeadsRouter.get("/", requireAuth, requireRole(...LEAD_ROLES), listLeadsController);
+adminLeadsRouter.use(requireRole(...LEAD_ROLES));
+adminLeadsRouter.get("/", listLeadsController);
 adminLeadsRouter.post("/", validate(createLeadSchema), createLeadController);
 adminLeadsRouter.put("/:id", validate(updateLeadSchema), updateLeadController);
 adminLeadsRouter.delete("/:id", deleteLeadController);

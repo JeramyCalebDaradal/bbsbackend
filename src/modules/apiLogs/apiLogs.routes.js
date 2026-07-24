@@ -1,6 +1,5 @@
 const express = require("express");
 const { ingestLogController, listApiLogsController } = require("./apiLogs.controller");
-const { requireAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
 
 const apiLogsIngestRouter = express.Router();
@@ -10,6 +9,7 @@ const adminApiLogsRouter = express.Router();
 apiLogsIngestRouter.post("/ingest", ingestLogController);
 
 // Dashboard endpoint — Super Admin only
-adminApiLogsRouter.get("/", requireAuth, requireRole("Super Admin"), listApiLogsController);
+adminApiLogsRouter.use(requireRole("Administrator"));
+adminApiLogsRouter.get("/", listApiLogsController);
 
 module.exports = { apiLogsIngestRouter, adminApiLogsRouter };
