@@ -48,6 +48,10 @@ async function getGraphAccessToken() {
         let data = "";
         res.on("data", (chunk) => (data += chunk));
         res.on("end", () => {
+          if (!data.trim()) {
+            reject(new Error(`Graph token empty response (HTTP ${res.statusCode}) — check ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET are correct`));
+            return;
+          }
           try {
             const parsed = JSON.parse(data);
             if (res.statusCode >= 200 && res.statusCode < 300 && parsed.access_token) {
@@ -55,10 +59,10 @@ async function getGraphAccessToken() {
               graphCache.expiresAt = now + (parsed.expires_in || 3600) * 1000;
               resolve(parsed.access_token);
             } else {
-              reject(new Error(`Graph token error ${res.statusCode}: ${data}`));
+              reject(new Error(`Graph token error ${res.statusCode}: ${parsed.error_description || parsed.error || data}`));
             }
           } catch (e) {
-            reject(new Error(`Graph token parse error: ${e.message}`));
+            reject(new Error(`Graph token parse error: ${e.message} — raw: ${data.slice(0, 200)}`));
           }
         });
       }

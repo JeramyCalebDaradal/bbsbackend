@@ -12,6 +12,7 @@ const { apiLogsIngestRouter, adminApiLogsRouter } = require("../modules/apiLogs/
 const { adminSettingsRouter, publicSettingsRouter } = require("../modules/settings/settings.routes");
 const { adminRoleConfigRouter } = require("../modules/roleConfig/roleConfig.routes");
 const { msGraphRouter } = require("../modules/msGraph/msGraph.routes");
+const { adminUsersRouter } = require("../modules/users/users.routes");
 const { requireDashboardAuth } = require("../middleware/requireAuth");
 const { requirePageAccess } = require("../middleware/requirePageAccess");
 
@@ -36,6 +37,7 @@ apiRouter.use("/api-logs", apiLogsIngestRouter);
 apiRouter.use("/admin/api-logs", requireDashboardAuth, requirePageAccess("api-logs"), adminApiLogsRouter);
 apiRouter.use("/admin/settings", requireDashboardAuth, requirePageAccess("settings"), adminSettingsRouter);
 apiRouter.use("/admin/role-config", requireDashboardAuth, requirePageAccess("roles"), adminRoleConfigRouter);
+apiRouter.use("/admin/users", requireDashboardAuth, requirePageAccess("users"), adminUsersRouter);
 apiRouter.use("/events", publicEventsRouter);
 apiRouter.use("/articles", publicArticlesRouter);
 apiRouter.use("/datasheets", publicDatasheetsRouter);
