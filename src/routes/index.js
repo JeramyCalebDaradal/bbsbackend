@@ -11,6 +11,7 @@ const { adminLogsRouter } = require("../modules/logs/logs.routes");
 const { apiLogsIngestRouter, adminApiLogsRouter } = require("../modules/apiLogs/apiLogs.routes");
 const { adminSettingsRouter, publicSettingsRouter } = require("../modules/settings/settings.routes");
 const { adminRoleConfigRouter } = require("../modules/roleConfig/roleConfig.routes");
+const { msGraphRouter } = require("../modules/msGraph/msGraph.routes");
 const { requireDashboardAuth } = require("../middleware/requireAuth");
 const { requirePageAccess } = require("../middleware/requirePageAccess");
 
@@ -20,6 +21,7 @@ apiRouter.get("/", (req, res) => {
   res.status(200).json({ name: "bbs-backend", version: "v1" });
 });
 
+apiRouter.use("/ms", msGraphRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/admin", requireDashboardAuth, adminRouter);
 apiRouter.use("/admin/events", requireDashboardAuth, requirePageAccess("events"), adminEventsRouter);

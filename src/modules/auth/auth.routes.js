@@ -26,9 +26,33 @@ const {
 
 const authRouter = express.Router();
 
-authRouter.post("/login", validate(loginSchema), loginController);
-authRouter.post("/refresh", refreshController);
-authRouter.post("/logout", logoutController);  // No requireAuth — identifies user via refresh token cookie
+// DISABLED: Old credential login — use Microsoft Entra SSO instead
+authRouter.post("/login", (req, res) => {
+  res.status(410).json({
+    ok: false,
+    code: "GONE",
+    message: "Credential login is disabled. Please sign in via Microsoft Entra SSO."
+  });
+});
+
+// DISABLED: Old refresh — Entra tokens are refreshed client-side via MSAL
+authRouter.post("/refresh", (req, res) => {
+  res.status(410).json({
+    ok: false,
+    code: "GONE",
+    message: "Token refresh is handled by Microsoft Entra SSO (MSAL)."
+  });
+});
+
+// DISABLED: Old logout — Entra sign-out is client-side
+authRouter.post("/logout", (req, res) => {
+  res.status(410).json({
+    ok: false,
+    code: "GONE",
+    message: "Sign out via Microsoft Entra SSO."
+  });
+});
+
 authRouter.get("/entra/me", requireEntraAuth, (req, res) => {
   res.status(200).json({
     ok: true,
@@ -38,7 +62,15 @@ authRouter.get("/entra/me", requireEntraAuth, (req, res) => {
     upn: req.entra?.upn || null,
   });
 });
-authRouter.get("/me", requireAuth, meController);
+
+// DISABLED: Old /me — custom JWTs no longer issued
+authRouter.get("/me", (req, res) => {
+  res.status(410).json({
+    ok: false,
+    code: "GONE",
+    message: "Use /auth/entra/me with an Entra access token."
+  });
+});
 
 function optionalAuth(req, res, next) {
   const header = String(req.headers?.authorization || "");
@@ -46,9 +78,16 @@ function optionalAuth(req, res, next) {
   return requireAuth(req, res, next);
 }
 
-authRouter.post("/super-admin", optionalAuth, validate(createSuperAdminSchema), createSuperAdminController);
-authRouter.put("/profile", requireAuth, validate(updateProfileSchema), updateProfileController);
-authRouter.put("/password", requireAuth, validate(changePasswordSchema), changePasswordController);
+// DISABLED: These endpoints relied on custom JWTs
+authRouter.post("/super-admin", (req, res) => {
+  res.status(410).json({ ok: false, code: "GONE", message: "Super-admin creation is now managed via Entra App Roles." });
+});
+authRouter.put("/profile", (req, res) => {
+  res.status(410).json({ ok: false, code: "GONE", message: "Profile updates are managed via Entra user profile." });
+});
+authRouter.put("/password", (req, res) => {
+  res.status(410).json({ ok: false, code: "GONE", message: "Password changes are managed in Entra (Azure AD)." });
+});
 
 const adminRouter = express.Router();
 
