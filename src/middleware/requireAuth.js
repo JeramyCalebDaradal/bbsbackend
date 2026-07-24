@@ -79,7 +79,13 @@ function decodeJwtHeader(token) {
 async function verifyEntraAccessToken(token) {
   const tenantId = String(getEnvDecrypted("ENTRA_TENANT_ID") || "").trim();
   const expectedAudience = getExpectedEntraAudience();
-  if (!tenantId || !expectedAudience) return null;
+
+  process.stderr.write(`[requireAuth] tenantId="${tenantId}" audience="${expectedAudience}"\n`);
+
+  if (!tenantId || !expectedAudience) {
+    process.stderr.write(`[requireAuth] Missing config — aborting\n`);
+    return null;
+  }
 
   const header = decodeJwtHeader(token);
   const alg = String(header?.alg || "");
