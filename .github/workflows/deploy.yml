@@ -37,9 +37,11 @@ jobs:
       - name: Copy files to server
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "mkdir -p ${{ env.REGISTRY_DIR }}"
+            "mkdir -p ${{ env.REGISTRY_DIR }} && rm -rf ${{ env.REMOTE_DEPLOY_SCRIPT }}"
           scp -i ~/.ssh/deploy_key \
             ${{ env.IMAGE_NAME }}-${{ github.sha }}.tar.gz \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.REGISTRY_DIR }}/
+          scp -i ~/.ssh/deploy_key \
             deploy.sh \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.REMOTE_DEPLOY_SCRIPT }}
 
