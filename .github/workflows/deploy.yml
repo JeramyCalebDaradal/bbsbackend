@@ -8,6 +8,7 @@ env:
   IMAGE_NAME: bbsbackend
   CONTAINER_NAME: bbsbackend
   REGISTRY_DIR: /opt/bbs/images
+  REMOTE_DEPLOY_SCRIPT: /opt/bbs/images/backend-deploy.sh
 
 jobs:
   deploy:
@@ -40,11 +41,11 @@ jobs:
           scp -i ~/.ssh/deploy_key \
             ${{ env.IMAGE_NAME }}-${{ github.sha }}.tar.gz \
             deploy.sh \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.REGISTRY_DIR }}/
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.REMOTE_DEPLOY_SCRIPT }}
 
       - name: Deploy container on server
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            bash ${{ env.REGISTRY_DIR }}/deploy.sh \
+            bash ${{ env.REMOTE_DEPLOY_SCRIPT }} \
             ${{ github.sha }} \
             ${{ env.REGISTRY_DIR }}
