@@ -78,21 +78,23 @@ async function getGraphAccessToken() {
 /**
  * Generic Graph API GET request with Authorization header.
  */
-async function graphGet(path, params = {}) {
+async function graphRequest(method, path, body = null, params = {}, extraHeaders = {}) {
   const token = await getGraphAccessToken();
   const query = new URLSearchParams(params).toString();
   const fullPath = `${path}${query ? `?${query}` : ""}`;
+  const payload = body ? JSON.stringify(body) : null;
 
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
         hostname: "graph.microsoft.com",
         path: fullPath,
-        method: "GET",
+        method,
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          ConsistencyLevel: "eventual",
+          ...(payload ? { "Content-Length": Buffer.byteLength(payload) } : {}),
+          ...extraHeaders,
         },
       },
       (res) => {
@@ -104,7 +106,7 @@ async function graphGet(path, params = {}) {
             if (res.statusCode >= 200 && res.statusCode < 300) {
               resolve(parsed);
             } else {
-              reject(new Error(`Graph GET ${path} failed ${res.statusCode}: ${data}`));
+              reject(new Error(`Graph ${method} ${path} failed ${res.statusCode}: ${data}`));
             }
           } catch (e) {
             reject(new Error(`Graph parse error: ${e.message}`));
@@ -113,8 +115,25 @@ async function graphGet(path, params = {}) {
       }
     );
     req.on("error", reject);
+    if (payload) req.write(payload);
     req.end();
   });
+}
+
+async function graphGet(path, params = {}) {
+  return graphRequest("GET", path, null, params, { ConsistencyLevel: "eventual" });
+}
+
+async function graphPost(path, body = {}) {
+  return graphRequest("POST", path, body);
+}
+
+async function graphPatch(path, body = {}) {
+  return graphRequest("PATCH", path, body);
+}
+
+async function graphDelete(path) {
+  return graphRequest("DELETE", path);
 }
 
 /**
@@ -172,7 +191,11 @@ async function listAllUsers(callback, options = {}) {
 
 module.exports = {
   getGraphAccessToken,
+  graphRequest,
   graphGet,
+  graphPost,
+  graphPatch,
+  graphDelete,
   getUserByOid,
   listAllUsers,
 };

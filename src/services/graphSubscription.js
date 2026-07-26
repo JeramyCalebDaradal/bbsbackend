@@ -1,4 +1,4 @@
-const { getGraphAccessToken, graphPost, graphDelete } = require("./graphClient");
+const { graphGet, graphPost, graphPatch, graphDelete } = require("./graphClient");
 const { getEnvDecrypted } = require("../utils/envCrypto");
 
 /**
@@ -26,8 +26,7 @@ async function createSubscription(tid) {
     latestSupportedTlsVersion: "v1_2",
   };
 
-  const token = await getGraphAccessToken(tid);
-  const subscription = await graphPost(token, "/subscriptions", body);
+  const subscription = await graphPost("/v1.0/subscriptions", body);
   
   console.log(`[graphSubscription] Created subscription ${subscription.id} expiring at ${subscription.expirationDateTime}`);
   return subscription;
@@ -45,8 +44,7 @@ async function renewSubscription(tid, subscriptionId) {
   const expirationDateTime = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
   const body = { expirationDateTime: expirationDateTime.toISOString() };
 
-  const token = await getGraphAccessToken(tid);
-  const subscription = await graphPost(token, `/subscriptions/${subscriptionId}`, body, "PATCH");
+  const subscription = await graphPatch(`/v1.0/subscriptions/${subscriptionId}`, body);
   
   console.log(`[graphSubscription] Renewed subscription ${subscriptionId} to ${subscription.expirationDateTime}`);
   return subscription;
@@ -59,8 +57,7 @@ async function renewSubscription(tid, subscriptionId) {
  * @param {string} subscriptionId - Subscription ID to delete
  */
 async function deleteSubscription(tid, subscriptionId) {
-  const token = await getGraphAccessToken(tid);
-  await graphDelete(token, `/subscriptions/${subscriptionId}`);
+  await graphDelete(`/v1.0/subscriptions/${subscriptionId}`);
   console.log(`[graphSubscription] Deleted subscription ${subscriptionId}`);
 }
 
@@ -71,8 +68,7 @@ async function deleteSubscription(tid, subscriptionId) {
  * @returns {Promise<Array>} Array of subscriptions
  */
 async function listSubscriptions(tid) {
-  const token = await getGraphAccessToken(tid);
-  const result = await graphPost(token, "/subscriptions", {}, "GET");
+  const result = await graphGet("/v1.0/subscriptions");
   return result.value || [];
 }
 
