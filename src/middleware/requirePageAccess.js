@@ -17,7 +17,6 @@ const PAGE_KEY_BY_ROUTE = {
   "/admin/logs": "logs",
   "/admin/role-config": "roles",
   "/admin/roles": "roles",
-  "/admin/users": "users",
 };
 
 /**

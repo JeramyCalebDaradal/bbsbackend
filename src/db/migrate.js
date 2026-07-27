@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const { pool } = require("./pool");
+const { getEnvDecrypted } = require("../utils/envCrypto");
 
 async function tableExists(tableName) {
   const [rows] = await pool.query(
@@ -1023,79 +1024,9 @@ async function migratePagedListViews() {
   `);
 }
 
-async function migrateBbsUsers() {
-  const exists = await tableExists("bbs_users");
-
-  if (!exists) {
-    await pool.query(`
-      CREATE TABLE bbs_users (
-        tid CHAR(36) NOT NULL,
-        oid CHAR(36) NOT NULL,
-        upn VARCHAR(256) NOT NULL,
-        mail VARCHAR(256) NULL,
-        display_name VARCHAR(256) NOT NULL,
-        given_name VARCHAR(128) NULL,
-        surname VARCHAR(128) NULL,
-        account_enabled TINYINT(1) NOT NULL DEFAULT 1,
-        user_type VARCHAR(32) NOT NULL DEFAULT 'Member',
-        last_synced_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        deleted_at DATETIME NULL,
-        sync_hash VARCHAR(64) NULL,
-        PRIMARY KEY (tid, oid),
-        KEY idx_bbs_users_upn (upn),
-        KEY idx_bbs_users_mail (mail),
-        KEY idx_bbs_users_display_name (display_name),
-        KEY idx_bbs_users_account_enabled (account_enabled),
-        KEY idx_bbs_users_last_synced_at (last_synced_at),
-        KEY idx_bbs_users_deleted_at (deleted_at)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    return;
-  }
-
-  const requiredColumns = [
-    ["tid", "ALTER TABLE bbs_users ADD COLUMN tid CHAR(36) NOT NULL"],
-    ["oid", "ALTER TABLE bbs_users ADD COLUMN oid CHAR(36) NOT NULL"],
-    ["upn", "ALTER TABLE bbs_users ADD COLUMN upn VARCHAR(256) NOT NULL"],
-    ["mail", "ALTER TABLE bbs_users ADD COLUMN mail VARCHAR(256) NULL"],
-    ["display_name", "ALTER TABLE bbs_users ADD COLUMN display_name VARCHAR(256) NOT NULL"],
-    ["given_name", "ALTER TABLE bbs_users ADD COLUMN given_name VARCHAR(128) NULL"],
-    ["surname", "ALTER TABLE bbs_users ADD COLUMN surname VARCHAR(128) NULL"],
-    ["account_enabled", "ALTER TABLE bbs_users ADD COLUMN account_enabled TINYINT(1) NOT NULL DEFAULT 1"],
-    ["user_type", "ALTER TABLE bbs_users ADD COLUMN user_type VARCHAR(32) NOT NULL DEFAULT 'Member'"],
-    ["last_synced_at", "ALTER TABLE bbs_users ADD COLUMN last_synced_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"],
-    ["deleted_at", "ALTER TABLE bbs_users ADD COLUMN deleted_at DATETIME NULL"],
-    ["sync_hash", "ALTER TABLE bbs_users ADD COLUMN sync_hash VARCHAR(64) NULL"],
-  ];
-
-  for (const [name, sql] of requiredColumns) {
-    if (!(await columnExists("bbs_users", name))) {
-      await pool.query(sql);
-    }
-  }
-
-  if (!(await indexExists("bbs_users", "idx_bbs_users_upn"))) {
-    await pool.query("ALTER TABLE bbs_users ADD KEY idx_bbs_users_upn (upn)");
-  }
-  if (!(await indexExists("bbs_users", "idx_bbs_users_mail"))) {
-    await pool.query("ALTER TABLE bbs_users ADD KEY idx_bbs_users_mail (mail)");
-  }
-  if (!(await indexExists("bbs_users", "idx_bbs_users_display_name"))) {
-    await pool.query("ALTER TABLE bbs_users ADD KEY idx_bbs_users_display_name (display_name)");
-  }
-  if (!(await indexExists("bbs_users", "idx_bbs_users_account_enabled"))) {
-    await pool.query("ALTER TABLE bbs_users ADD KEY idx_bbs_users_account_enabled (account_enabled)");
-  }
-  if (!(await indexExists("bbs_users", "idx_bbs_users_last_synced_at"))) {
-    await pool.query("ALTER TABLE bbs_users ADD KEY idx_bbs_users_last_synced_at (last_synced_at)");
-  }
-  if (!(await indexExists("bbs_users", "idx_bbs_users_deleted_at"))) {
-    await pool.query("ALTER TABLE bbs_users ADD KEY idx_bbs_users_deleted_at (deleted_at)");
-  }
-}
-
 async function migrateBbsRoleConfig() {
   const exists = await tableExists("bbs_role_config");
+  const tenantId = String(getEnvDecrypted("ENTRA_TENANT_ID") || "").trim() || "00000000-0000-0000-0000-000000000000";
 
   if (!exists) {
     await pool.query(`
@@ -1116,10 +1047,10 @@ async function migrateBbsRoleConfig() {
     await pool.query(`
       INSERT INTO bbs_role_config (tid, role_name, allowed_pages_json, description)
       VALUES 
-        ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'Default', '[]', 'Default role - no dashboard access'),
-        ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'Administrator', '["dashboard", "users", "roles", "settings", "reports", "articles", "events", "appointments", "leads", "datasheets", "videos", "logs", "api-logs"]', 'Full admin access'),
-        ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'ContentManager', '["dashboard", "articles", "events", "videos", "datasheets"]', 'Content management access'),
-        ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'Analyst', '["dashboard", "reports", "users", "leads"]', 'Analytics and reporting access')
+        ('${tenantId}', 'Default', '[]', 'Default role - no dashboard access'),
+        ('${tenantId}', 'Administrator', '["dashboard", "users", "roles", "settings", "reports", "articles", "events", "appointments", "leads", "datasheets", "videos", "logs", "api-logs"]', 'Full admin access'),
+        ('${tenantId}', 'ContentManager', '["dashboard", "articles", "events", "videos", "datasheets"]', 'Content management access'),
+        ('${tenantId}', 'Analyst', '["dashboard", "reports", "users", "leads"]', 'Analytics and reporting access')
       ON DUPLICATE KEY UPDATE role_name = role_name;
     `);
     return;
@@ -1151,10 +1082,10 @@ async function migrateBbsRoleConfig() {
   await pool.query(`
     INSERT INTO bbs_role_config (tid, role_name, allowed_pages_json, description)
     VALUES 
-      ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'Default', '[]', 'Default role - no dashboard access'),
-      ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'Administrator', '["dashboard", "users", "roles", "settings", "reports", "articles", "events", "appointments", "leads", "datasheets", "videos", "logs", "api-logs"]', 'Full admin access'),
-      ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'ContentManager', '["dashboard", "articles", "events", "videos", "datasheets"]', 'Content management access'),
-      ('${process.env.ENTRA_TENANT_ID || '00000000-0000-0000-0000-000000000000'}', 'Analyst', '["dashboard", "reports", "users", "leads"]', 'Analytics and reporting access')
+      ('${tenantId}', 'Default', '[]', 'Default role - no dashboard access'),
+      ('${tenantId}', 'Administrator', '["dashboard", "users", "roles", "settings", "reports", "articles", "events", "appointments", "leads", "datasheets", "videos", "logs", "api-logs"]', 'Full admin access'),
+      ('${tenantId}', 'ContentManager', '["dashboard", "articles", "events", "videos", "datasheets"]', 'Content management access'),
+      ('${tenantId}', 'Analyst', '["dashboard", "reports", "users", "leads"]', 'Analytics and reporting access')
     ON DUPLICATE KEY UPDATE
       allowed_pages_json = VALUES(allowed_pages_json),
       description = VALUES(description);
@@ -1178,7 +1109,6 @@ async function migrate() {
   await migrateLogs();
   await migrateLogsView();
   await migrateSettingsView();
-  await migrateBbsUsers();
   await migrateBbsRoleConfig();
 }
 

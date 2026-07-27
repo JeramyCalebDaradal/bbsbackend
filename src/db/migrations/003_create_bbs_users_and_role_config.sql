@@ -1,34 +1,10 @@
 -- ============================================================
--- Migration: 003_create_bbs_users_and_role_config.sql
--- Creates bbs_users (Entra directory cache) and bbs_role_config (role-to-page access)
+-- Migration: 003_create_bbs_role_config.sql
+-- Creates bbs_role_config (role-to-page access)
 -- Run this on PRODUCTION database manually
 -- ============================================================
 
--- 1) bbs_users: Entra directory cache (synced via Graph change notifications)
--- Composite PK on (tid, oid) to match Graph user id (tenant + object id)
-CREATE TABLE IF NOT EXISTS `bbs_users` (
-  `tid` CHAR(36) NOT NULL,
-  `oid` CHAR(36) NOT NULL,
-  `upn` VARCHAR(256) NOT NULL,
-  `mail` VARCHAR(256) NULL,
-  `display_name` VARCHAR(256) NOT NULL,
-  `given_name` VARCHAR(128) NULL,
-  `surname` VARCHAR(128) NULL,
-  `account_enabled` TINYINT(1) NOT NULL DEFAULT 1,
-  `user_type` VARCHAR(32) NOT NULL DEFAULT 'Member',
-  `last_synced_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted_at` DATETIME NULL,
-  `sync_hash` VARCHAR(64) NULL,
-  PRIMARY KEY (`tid`, `oid`),
-  KEY `idx_bbs_users_upn` (`upn`),
-  KEY `idx_bbs_users_mail` (`mail`),
-  KEY `idx_bbs_users_display_name` (`display_name`),
-  KEY `idx_bbs_users_account_enabled` (`account_enabled`),
-  KEY `idx_bbs_users_last_synced_at` (`last_synced_at`),
-  KEY `idx_bbs_users_deleted_at` (`deleted_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 2) bbs_role_config: Website-managed role → page access mapping
+-- 1) bbs_role_config: Website-managed role → page access mapping
 -- One row per (tenant, role_name). Admin editable via dashboard UI.
 CREATE TABLE IF NOT EXISTS `bbs_role_config` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

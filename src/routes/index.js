@@ -11,8 +11,6 @@ const { adminLogsRouter } = require("../modules/logs/logs.routes");
 const { apiLogsIngestRouter, adminApiLogsRouter } = require("../modules/apiLogs/apiLogs.routes");
 const { adminSettingsRouter, publicSettingsRouter } = require("../modules/settings/settings.routes");
 const { adminRoleConfigRouter } = require("../modules/roleConfig/roleConfig.routes");
-const { msGraphRouter } = require("../modules/msGraph/msGraph.routes");
-const { adminUsersRouter } = require("../modules/users/users.routes");
 const { requireDashboardAuth } = require("../middleware/requireAuth");
 const { requirePageAccess } = require("../middleware/requirePageAccess");
 
@@ -22,7 +20,6 @@ apiRouter.get("/", (req, res) => {
   res.status(200).json({ name: "bbs-backend", version: "v1" });
 });
 
-apiRouter.use("/ms", msGraphRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/admin", requireDashboardAuth, adminRouter);
 apiRouter.use("/admin/events", requireDashboardAuth, requirePageAccess("events"), adminEventsRouter);
@@ -37,7 +34,6 @@ apiRouter.use("/api-logs", apiLogsIngestRouter);
 apiRouter.use("/admin/api-logs", requireDashboardAuth, requirePageAccess("api-logs"), adminApiLogsRouter);
 apiRouter.use("/admin/settings", requireDashboardAuth, requirePageAccess("settings"), adminSettingsRouter);
 apiRouter.use("/admin/role-config", requireDashboardAuth, requirePageAccess("roles"), adminRoleConfigRouter);
-apiRouter.use("/admin/users", requireDashboardAuth, requirePageAccess("users"), adminUsersRouter);
 apiRouter.use("/events", publicEventsRouter);
 apiRouter.use("/articles", publicArticlesRouter);
 apiRouter.use("/datasheets", publicDatasheetsRouter);
