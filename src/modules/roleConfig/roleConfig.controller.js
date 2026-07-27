@@ -1,4 +1,4 @@
-const { getRoleConfigs, getRoleConfig, saveRoleConfig } = require("./roleConfig.service");
+const { getRoleConfigs, getRoleConfig, saveRoleConfig, removeRoleConfig } = require("./roleConfig.service");
 
 async function listRoleConfigsController(req, res, next) {
   try {
@@ -15,7 +15,7 @@ async function updateRoleConfigController(req, res, next) {
     const tid = req.entra?.tid || "";
     const roleName = String(req.params?.roleName || "").trim();
     const { allowed_pages_json, description } = req.body || {};
-    const updatedBy = req.oid || null;
+    const updatedBy = req.entra?.oid || null;
 
     const result = await saveRoleConfig({
       tid,
@@ -30,4 +30,15 @@ async function updateRoleConfigController(req, res, next) {
   }
 }
 
-module.exports = { listRoleConfigsController, updateRoleConfigController };
+async function deleteRoleConfigController(req, res, next) {
+  try {
+    const tid = req.entra?.tid || "";
+    const roleName = String(req.params?.roleName || "").trim();
+    await removeRoleConfig({ tid, roleName });
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listRoleConfigsController, updateRoleConfigController, deleteRoleConfigController };
