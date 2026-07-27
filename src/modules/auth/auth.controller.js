@@ -192,8 +192,10 @@ async function listUsersController(req, res, next) {
     const users = await getUsers({
       actorRole: req.userRole,
       search: req.query?.search,
+      page: req.query?.page,
+      limit: req.query?.limit,
     });
-    res.status(200).json({ ok: true, users });
+    res.status(200).json({ ok: true, ...users });
   } catch (err) {
     next(err);
   }

@@ -91,11 +91,8 @@ async function getGraphAccessToken() {
   return String(result?.access_token || "").trim();
 }
 
-function mapGraphUser(user) {
-  const roleCandidates = [];
-  if (Array.isArray(user?.appRoles)) roleCandidates.push(...user.appRoles);
-  if (Array.isArray(user?.roles)) roleCandidates.push(...user.roles);
-
+function mapGraphUser(user, roleByPrincipalName) {
+  const upn = String(user?.userPrincipalName || "").trim().toLowerCase();
   return {
     tid: null,
     oid: String(user?.id || "").trim(),
@@ -105,13 +102,73 @@ function mapGraphUser(user) {
     department: String(user?.department || "").trim(),
     job_title: String(user?.jobTitle || "").trim(),
     account_enabled: Boolean(user?.accountEnabled),
-    app_role: String(roleCandidates.find(Boolean) || "Default").trim() || "Default",
+    app_role: roleByPrincipalName.get(upn) || "Default",
     synced_at: null,
   };
 }
 
-async function listEntraUsers({ search = "" } = {}) {
+async function getAppRoleDefinitions(token, servicePrincipalId) {
+  const payload = await getJson(`https://graph.microsoft.com/v1.0/servicePrincipals/${encodeURIComponent(servicePrincipalId)}?$select=appRoles`, token);
+  const appRoles = Array.isArray(payload?.appRoles) ? payload.appRoles : [];
+  const roleMap = new Map();
+  for (const role of appRoles) {
+    const id = String(role?.id || "").trim();
+    const displayName = String(role?.displayName || role?.value || "").trim();
+    if (id && displayName) roleMap.set(id, displayName);
+  }
+  return roleMap;
+}
+
+async function listDirectoryRoleAssignments(token, servicePrincipalId) {
+  const appRoleNames = await getAppRoleDefinitions(token, servicePrincipalId);
+  const usersByPrincipalName = new Map();
+  let url = `https://graph.microsoft.com/v1.0/servicePrincipals/${encodeURIComponent(servicePrincipalId)}/appRoleAssignedTo?$top=999`;
+
+  while (url) {
+    const payload = await getJson(url, token);
+    const items = Array.isArray(payload?.value) ? payload.value : [];
+    for (const item of items) {
+      const principalType = String(item?.principalType || "").trim();
+      const principalDisplayName = String(item?.principalDisplayName || "").trim();
+      if (principalType !== "User" || !principalDisplayName) continue;
+      const key = principalDisplayName.toLowerCase();
+      const appRoleId = String(item?.appRoleId || "").trim();
+      const roleName = appRoleNames.get(appRoleId) || "Assigned";
+      usersByPrincipalName.set(key, roleName);
+    }
+    url = typeof payload?.["@odata.nextLink"] === "string" ? payload["@odata.nextLink"] : "";
+  }
+
+  return usersByPrincipalName;
+}
+
+async function getRoleMap(token) {
+  const servicePrincipalId = String(getEnvDecrypted("ENTRA_SERVICE_PRINCIPAL_ID") || "").trim();
+  if (!servicePrincipalId) return new Map();
+
+  try {
+    return await listDirectoryRoleAssignments(token, servicePrincipalId);
+  } catch {
+    return new Map();
+  }
+}
+
+function paginate(items, page, limit) {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safeLimit = Math.max(1, Math.min(100, Number(limit) || 20));
+  const start = (safePage - 1) * safeLimit;
+  const end = start + safeLimit;
+  return {
+    page: safePage,
+    limit: safeLimit,
+    total: items.length,
+    data: items.slice(start, end),
+  };
+}
+
+async function listEntraUsers({ search = "", page = 1, limit = 20 } = {}) {
   const token = await getGraphAccessToken();
+  const roleByPrincipalName = await getRoleMap(token);
   const select = [
     "id",
     "displayName",
@@ -133,11 +190,12 @@ async function listEntraUsers({ search = "" } = {}) {
   while (url) {
     const payload = await getJson(url, token);
     const items = Array.isArray(payload?.value) ? payload.value : [];
-    rows.push(...items.map(mapGraphUser));
+    rows.push(...items.map((item) => mapGraphUser(item, roleByPrincipalName)));
     url = typeof payload?.["@odata.nextLink"] === "string" ? payload["@odata.nextLink"] : "";
   }
 
-  return rows;
+  rows.sort((a, b) => String(a.display_name || a.email || "").localeCompare(String(b.display_name || b.email || "")));
+  return paginate(rows, page, limit);
 }
 
 module.exports = { listEntraUsers };

@@ -348,7 +348,7 @@ async function createAdminUser({ first_name, last_name, email, password, role, s
   return { user: publicUser(created), password: passwordPlain };
 }
 
-async function getUsers({ actorRole, search }) {
+async function getUsers({ actorRole, search, page, limit }) {
   if (actorRole !== "Administrator") {
     const err = new Error("Forbidden");
     err.statusCode = 403;
@@ -356,7 +356,7 @@ async function getUsers({ actorRole, search }) {
     throw err;
   }
 
-  return listEntraUsers({ search });
+  return listEntraUsers({ search, page, limit });
 }
 
 function ensureId(id) {
