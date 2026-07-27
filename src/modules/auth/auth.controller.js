@@ -189,7 +189,10 @@ async function createAdminUserController(req, res, next) {
 
 async function listUsersController(req, res, next) {
   try {
-    const users = await getUsers(req.userId);
+    const users = await getUsers({
+      actorRole: req.userRole,
+      search: req.query?.search,
+    });
     res.status(200).json({ ok: true, users });
   } catch (err) {
     next(err);

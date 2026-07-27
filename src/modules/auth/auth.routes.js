@@ -96,7 +96,5 @@ adminRouter.get("/roles", requirePageAccess("roles"), (req, res) => {
 });
 
 adminRouter.get("/users", requirePageAccess("users"), requireRole("Administrator"), listUsersController);
-adminRouter.post("/users", requirePageAccess("users"), requireRole("Administrator"), validate(createAdminUserSchema), createAdminUserController);
-adminRouter.put("/users/:id", requirePageAccess("users"), requireRole("Administrator"), updateAdminUserController);
 
 module.exports = { authRouter, adminRouter };

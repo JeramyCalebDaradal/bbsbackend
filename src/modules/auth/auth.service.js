@@ -4,15 +4,16 @@ const { sha256 } = require("../../utils/sha256");
 const { generateRandomPassword } = require("../../utils/randomPassword");
 const { issueUserToken } = require("../../utils/tokenCrypto");
 const {
-  countByRole,
   findByEmail,
-  findById,
+  countByRole,
   insertUser,
+  findById,
   listUsers,
   updateUserNameById,
   updateUserPasswordById,
   updateUserRoleStatusById,
 } = require("./auth.repository");
+const { listEntraUsers } = require("../../services/graphDirectory");
 const {
   issueTokens,
   rotateRefreshToken,
@@ -347,10 +348,15 @@ async function createAdminUser({ first_name, last_name, email, password, role, s
   return { user: publicUser(created), password: passwordPlain };
 }
 
-async function getUsers(actorId) {
-  await ensureActorIsSuperAdmin(actorId);
-  const rows = await listUsers();
-  return rows.map(publicUser);
+async function getUsers({ actorRole, search }) {
+  if (actorRole !== "Administrator") {
+    const err = new Error("Forbidden");
+    err.statusCode = 403;
+    err.code = "FORBIDDEN";
+    throw err;
+  }
+
+  return listEntraUsers({ search });
 }
 
 function ensureId(id) {
