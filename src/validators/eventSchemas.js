@@ -1,8 +1,10 @@
 const { z } = require("zod");
 
+const previewImageSchema = z.string().optional().default("");
+
 const createEventSchema = z.object({
   title: z.string().min(1).max(255).trim(),
-  preview_image: z.string().max(500).optional().default(""),
+  preview_image: previewImageSchema,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().min(1).max(50).trim(),
   location_type: z.enum(["online", "in person"]),
@@ -20,7 +22,7 @@ const createEventSchema = z.object({
 
 const updateEventSchema = z.object({
   title: z.string().min(1).max(255).trim(),
-  preview_image: z.string().max(500).optional().default(""),
+  preview_image: previewImageSchema,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().min(1).max(50).trim(),
   location_type: z.enum(["online", "in person"]),
