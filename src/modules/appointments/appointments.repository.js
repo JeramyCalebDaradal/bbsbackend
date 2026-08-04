@@ -180,4 +180,16 @@ async function updateAppointmentById(
   return Number(result.affectedRows || 0);
 }
 
-module.exports = { listAppointments, findById, insertAppointment, updateAppointmentById };
+async function deleteAppointmentById(id) {
+  const [result] = await pool.query(
+    `
+      DELETE FROM bbs_appointments
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [id]
+  );
+  return Number(result.affectedRows || 0);
+}
+
+module.exports = { listAppointments, findById, insertAppointment, updateAppointmentById, deleteAppointmentById };

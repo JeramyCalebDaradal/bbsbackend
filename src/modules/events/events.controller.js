@@ -1,5 +1,13 @@
-const { createEvent, getEventAttendees, getEvents, getEventsPaged, registerForEvent, updateEvent } = require("./events.service");
-const { created, edited, recordLog } = require("../logs/logs.service");
+const {
+  createEvent,
+  deleteEvent,
+  getEventAttendees,
+  getEvents,
+  getEventsPaged,
+  registerForEvent,
+  updateEvent,
+} = require("./events.service");
+const { created, edited, recordLog, removed } = require("../logs/logs.service");
 
 async function listAdminEventsController(req, res, next) {
   try {
@@ -47,6 +55,20 @@ async function updateEventController(req, res, next) {
   }
 }
 
+async function deleteEventController(req, res, next) {
+  try {
+    const event = await deleteEvent(req.params.id);
+    try {
+      if (req.userId) {
+        await recordLog({ userId: req.userId, action: removed(`an event: ${event.title}`) });
+      }
+    } catch {}
+    res.status(200).json({ ok: true, event });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listEventAttendeesController(req, res, next) {
   try {
     const result = await getEventAttendees(req.params.id);
@@ -70,6 +92,7 @@ module.exports = {
   listPublicEventsController,
   createEventController,
   updateEventController,
+  deleteEventController,
   listEventAttendeesController,
   registerForEventController,
 };

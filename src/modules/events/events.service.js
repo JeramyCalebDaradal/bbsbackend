@@ -6,6 +6,7 @@ const {
   listEvents,
   listEventsPaged,
   updateEventById,
+  deleteEventById,
 } = require("./events.repository");
 const { normalizeImageField, signUrl, signUrls, deleteFromS3 } = require("../../utils/bucketStorage");
 
@@ -218,7 +219,6 @@ async function updateEvent(id, payload) {
     contextLabel: "Event error",
   });
 
-  // Clean up old S3 image if replaced
   const oldImageKey = String(existing?.preview_image || "").trim();
   if (oldImageKey && oldImageKey !== previewImage) {
     deleteFromS3(oldImageKey);
@@ -252,6 +252,25 @@ async function updateEvent(id, payload) {
   const event = publicEvent(updated);
   if (event.preview_image) event.preview_image = await signUrl(event.preview_image);
   return event;
+}
+
+async function deleteEvent(id) {
+  const eventId = ensurePositiveInt(id, "id");
+  const existing = await findById(eventId);
+  if (!existing) {
+    const err = new Error("Event not found");
+    err.statusCode = 404;
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  const oldImageKey = String(existing?.preview_image || "").trim();
+  await deleteEventById(eventId);
+  if (oldImageKey) {
+    deleteFromS3(oldImageKey);
+  }
+
+  return publicEvent(existing);
 }
 
 async function getEventAttendees(id) {
@@ -322,4 +341,4 @@ async function registerForEvent(id, payload) {
   }
 }
 
-module.exports = { getEvents, getEventsPaged, createEvent, updateEvent, getEventAttendees, registerForEvent };
+module.exports = { getEvents, getEventsPaged, createEvent, updateEvent, deleteEvent, getEventAttendees, registerForEvent };

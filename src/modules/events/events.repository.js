@@ -214,6 +214,19 @@ async function updateEventById(
   return Number(result.affectedRows || 0);
 }
 
+async function deleteEventById(id) {
+  const [result] = await pool.query(
+    `
+      DELETE FROM bbs_events
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [id]
+  );
+
+  return Number(result.affectedRows || 0);
+}
+
 async function listAttendeesByEventId(eventId) {
   const [rows] = await pool.query(
     `
@@ -259,6 +272,7 @@ module.exports = {
   findById,
   insertEvent,
   updateEventById,
+  deleteEventById,
   listAttendeesByEventId,
   insertAttendee,
 };

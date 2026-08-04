@@ -1,5 +1,5 @@
-const { createAppointment, getAppointments, updateAppointment } = require("./appointments.service");
-const { created, edited, recordLog } = require("../logs/logs.service");
+const { createAppointment, deleteAppointment, getAppointments, updateAppointment } = require("./appointments.service");
+const { created, edited, recordLog, removed } = require("../logs/logs.service");
 
 async function listAppointmentsController(req, res, next) {
   try {
@@ -42,4 +42,18 @@ async function updateAppointmentController(req, res, next) {
   }
 }
 
-module.exports = { listAppointmentsController, createAppointmentController, updateAppointmentController };
+async function deleteAppointmentController(req, res, next) {
+  try {
+    const appointment = await deleteAppointment(req.params.id);
+    try {
+      if (req.userId) {
+        await recordLog({ userId: req.userId, action: removed(`an appointment: ${appointment.full_name}`) });
+      }
+    } catch {}
+    res.status(200).json({ ok: true, appointment });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listAppointmentsController, createAppointmentController, updateAppointmentController, deleteAppointmentController };

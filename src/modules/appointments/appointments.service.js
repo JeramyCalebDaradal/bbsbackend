@@ -3,6 +3,7 @@ const {
   insertAppointment,
   listAppointments,
   updateAppointmentById,
+  deleteAppointmentById,
 } = require("./appointments.repository");
 const { pool } = require("../../db/pool");
 const { getSettingsRow } = require("../settings/settings.repository");
@@ -281,4 +282,18 @@ async function updateAppointment(id, payload) {
   return publicAppointment(updated);
 }
 
-module.exports = { getAppointments, createAppointment, updateAppointment };
+async function deleteAppointment(id) {
+  const appointmentId = ensurePositiveInt(id, "id");
+  const existing = await findById(appointmentId);
+  if (!existing) {
+    const err = new Error("Appointment not found");
+    err.statusCode = 404;
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  await deleteAppointmentById(appointmentId);
+  return publicAppointment(existing);
+}
+
+module.exports = { getAppointments, createAppointment, updateAppointment, deleteAppointment };

@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   createAppointmentController,
+  deleteAppointmentController,
   listAppointmentsController,
   updateAppointmentController,
 } = require("./appointments.controller");
@@ -16,5 +17,6 @@ adminAppointmentsRouter.use(requireRole(...APPOINTMENT_ROLES));
 adminAppointmentsRouter.get("/", listAppointmentsController);
 adminAppointmentsRouter.post("/", validate(createAppointmentSchema), createAppointmentController);
 adminAppointmentsRouter.put("/:id", validate(updateAppointmentSchema), updateAppointmentController);
+adminAppointmentsRouter.delete("/:id", deleteAppointmentController);
 
 module.exports = { adminAppointmentsRouter };
