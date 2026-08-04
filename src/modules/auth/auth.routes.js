@@ -11,6 +11,7 @@ const {
   updateAdminUserController,
   updateProfileController,
 } = require("./auth.controller");
+const { findByEmailLite } = require("./auth.repository");
 const { ADMIN_CREATABLE_ROLES, ROLES } = require("../../constants/roles");
 const { requireAuth, requireEntraAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
@@ -53,14 +54,31 @@ authRouter.post("/logout", (req, res) => {
   });
 });
 
-authRouter.get("/entra/me", requireEntraAuth, (req, res) => {
-  res.status(200).json({
-    ok: true,
-    tid: req.entra?.tid || null,
-    oid: req.entra?.oid || null,
-    roles: req.entra?.roles || [],
-    upn: req.entra?.upn || null,
-  });
+authRouter.get("/entra/me", requireEntraAuth, async (req, res, next) => {
+  try {
+    const upn = String(req.entra?.upn || "").trim().toLowerCase();
+    const authUser = upn ? await findByEmailLite(upn) : null;
+    res.status(200).json({
+      ok: true,
+      id: authUser?.id || null,
+      tid: req.entra?.tid || null,
+      oid: req.entra?.oid || null,
+      roles: req.entra?.roles || [],
+      upn: req.entra?.upn || null,
+      auth_user: authUser
+        ? {
+            id: authUser.id,
+            first_name: authUser.first_name,
+            last_name: authUser.last_name,
+            email: authUser.email,
+            role: authUser.role,
+            status: authUser.status,
+          }
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // DISABLED: Old /me — custom JWTs no longer issued

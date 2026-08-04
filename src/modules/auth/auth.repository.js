@@ -35,6 +35,21 @@ async function findById(id) {
   return rows[0] || null;
 }
 
+async function findByEmailLite(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) return null;
+  const [rows] = await pool.query(
+    `
+      SELECT id, first_name, last_name, email, role, status
+      FROM auth
+      WHERE LOWER(email) = ?
+      LIMIT 1
+    `,
+    [normalized]
+  );
+  return rows[0] || null;
+}
+
 async function listUsers() {
   const [rows] = await pool.query(
     `
@@ -98,6 +113,7 @@ module.exports = {
   countByRole,
   insertUser,
   findById,
+  findByEmailLite,
   listUsers,
   updateUserNameById,
   updateUserPasswordById,
