@@ -46,8 +46,8 @@ function maskAuthHeader(header) {
   return prefix;
 }
 
-async function ingestLog({ method, url, ip, status, time, auth, ua, ms, referer }) {
-  const userId = resolveUserIdFromToken(auth);
+async function ingestLog({ method, url, ip, status, time, auth, ua, ms, referer, userId: requestUserId }) {
+  const userId = Number(requestUserId) > 0 ? Number(requestUserId) : resolveUserIdFromToken(auth);
   const authMasked = maskAuthHeader(auth);
 
   const statusCode = Number(status);

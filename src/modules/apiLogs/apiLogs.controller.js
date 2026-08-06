@@ -12,6 +12,7 @@ async function ingestLogController(req, res, next) {
       ua: req.get("X-Log-Ua"),
       ms: req.get("X-Log-Ms"),
       referer: req.get("X-Log-Referer"),
+      userId: req.userId || null,
     });
     res.status(204).end();
   } catch (err) {

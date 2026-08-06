@@ -3,6 +3,7 @@ const https = require("https");
 const crypto = require("crypto");
 const { verifyUserToken } = require("../utils/tokenCrypto");
 const { getEnvDecrypted } = require("../utils/envCrypto");
+const { resolveLocalUserFromEntra } = require("./resolveLocalUser");
 
 const entraCache = {
   openIdConfigByTid: new Map(),
@@ -280,6 +281,15 @@ async function requireEntraAuth(req, res, next) {
     }
 
     req.entra = entraPayload;
+    const localUser = await resolveLocalUserFromEntra(entraPayload);
+    if (!localUser) {
+      const err = new Error("Authenticated Entra user is not provisioned in the local auth table");
+      err.statusCode = 403;
+      err.code = "LOCAL_USER_NOT_FOUND";
+      throw err;
+    }
+    req.userId = Number(localUser.id);
+    req.localUser = localUser;
     const roles = Array.isArray(entraPayload.roles) ? entraPayload.roles : [];
     if (roles.length > 1) {
       const err = new Error("Forbidden");
@@ -307,4 +317,4 @@ function requireDashboardAuth(req, res, next) {
   });
 }
 
-module.exports = { requireAuth, requireEntraAuth, requireDashboardAuth };
+module.exports = { requireAuth, requireEntraAuth, requireDashboardAuth, verifyEntraAccessToken };

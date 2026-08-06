@@ -11,7 +11,6 @@ const {
   updateAdminUserController,
   updateProfileController,
 } = require("./auth.controller");
-const { findByEmailLite } = require("./auth.repository");
 const { ADMIN_CREATABLE_ROLES, ROLES } = require("../../constants/roles");
 const { requireAuth, requireEntraAuth } = require("../../middleware/requireAuth");
 const { requireRole } = require("../../middleware/requireRole");
@@ -56,8 +55,7 @@ authRouter.post("/logout", (req, res) => {
 
 authRouter.get("/entra/me", requireEntraAuth, async (req, res, next) => {
   try {
-    const upn = String(req.entra?.upn || "").trim().toLowerCase();
-    const authUser = upn ? await findByEmailLite(upn) : null;
+    const authUser = req.localUser;
     res.status(200).json({
       ok: true,
       id: authUser?.id || null,
