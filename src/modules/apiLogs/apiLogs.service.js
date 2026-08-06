@@ -1,17 +1,29 @@
 const jwt = require("jsonwebtoken");
 const { insertApiLog, listApiLogs } = require("./apiLogs.repository");
 const { verifyUserToken } = require("../../utils/tokenCrypto");
+const { getEntraDisplayNamesByEmail } = require("../../services/graphDirectory");
+const { verifyEntraAccessToken } = require("../../middleware/requireAuth");
+const { resolveLocalUserFromEntra } = require("../../middleware/resolveLocalUser");
 
 /**
  * Try to extract user_id from a Bearer token.
  * Tries ACCESS_TOKEN_SECRET first, then legacy TOKEN_KEY.
  */
-function resolveUserIdFromToken(token) {
+async function resolveUserIdFromToken(token) {
   if (!token) return null;
 
   const parts = String(token).split(/\s+/);
   const raw = parts.length === 2 && /^bearer$/i.test(parts[0]) ? parts[1] : null;
   if (!raw) return null;
+
+  try {
+    const entra = await verifyEntraAccessToken(raw);
+    const localUser = await resolveLocalUserFromEntra(entra);
+    const userId = Number(localUser?.id);
+    if (Number.isFinite(userId) && userId > 0) return userId;
+  } catch {
+    // Fall through to legacy token checks
+  }
 
   try {
     const payload = jwt.verify(raw, process.env.ACCESS_TOKEN_SECRET);
@@ -47,7 +59,7 @@ function maskAuthHeader(header) {
 }
 
 async function ingestLog({ method, url, ip, status, time, auth, ua, ms, referer, userId: requestUserId }) {
-  const userId = Number(requestUserId) > 0 ? Number(requestUserId) : resolveUserIdFromToken(auth);
+  const userId = Number(requestUserId) > 0 ? Number(requestUserId) : await resolveUserIdFromToken(auth);
   const authMasked = maskAuthHeader(auth);
 
   const statusCode = Number(status);
@@ -105,6 +117,13 @@ async function getApiLogs(query) {
     query: q,
   });
 
+  let entraNames = new Map();
+  try {
+    entraNames = await getEntraDisplayNamesByEmail(result.rows.map((row) => row.user_email));
+  } catch (err) {
+    console.warn("[api-logs] Failed to resolve Entra display names:", err?.message || err);
+  }
+
   return {
     page: result.page,
     pageSize: result.pageSize,
@@ -117,6 +136,7 @@ async function getApiLogs(query) {
       status_code: r.status_code,
       user_id: r.user_id,
       user_email: r.user_email || null,
+      user_name: entraNames.get(String(r.user_email || "").trim().toLowerCase()) || r.user_email || null,
       authorization_masked: r.authorization_masked,
       user_agent: r.user_agent,
       response_time_ms: r.response_time_ms,

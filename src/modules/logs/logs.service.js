@@ -1,4 +1,5 @@
 const { insertLog, listLogs } = require("./logs.repository");
+const { getEntraDisplayNamesByEmail } = require("../../services/graphDirectory");
 
 function ensurePositiveInt(value, fieldName) {
   const n = Number(value);
@@ -94,6 +95,13 @@ async function getLogs(query) {
     query: q || "",
   });
 
+  let entraNames = new Map();
+  try {
+    entraNames = await getEntraDisplayNamesByEmail(result.rows.map((row) => row.email));
+  } catch (err) {
+    console.warn("[action-logs] Failed to resolve Entra display names:", err?.message || err);
+  }
+
   return {
     page: result.page,
     pageSize: result.pageSize,
@@ -101,7 +109,7 @@ async function getLogs(query) {
     logs: result.rows.map((r) => ({
       id: r.id,
       user_id: r.user_id,
-      full_name: r.full_name,
+      full_name: entraNames.get(String(r.email || "").trim().toLowerCase()) || r.email || "Unknown user",
       role: r.role,
       action: r.action,
       date: r.date,

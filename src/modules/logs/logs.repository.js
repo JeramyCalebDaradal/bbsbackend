@@ -61,11 +61,16 @@ async function listLogs({ page, pageSize, role, action, fromDate, toDate, query 
         id,
         user_id,
         full_name,
+        email,
         role,
         action,
         date,
         time
-      FROM bbs_logs_view
+      FROM (
+        SELECT v.*, a.email
+        FROM bbs_logs_view v
+        INNER JOIN auth a ON a.id = v.user_id
+      ) enriched_logs
       ${whereSql}
       ORDER BY date DESC, time DESC, id DESC
       LIMIT :limit

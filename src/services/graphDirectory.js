@@ -166,6 +166,36 @@ function paginate(items, page, limit) {
   };
 }
 
+let displayNameCache = { expiresAt: 0, namesByEmail: new Map() };
+
+async function getEntraDisplayNamesByEmail(emails) {
+  const requestedEmails = [...new Set((emails || []).map((email) => String(email || "").trim().toLowerCase()).filter(Boolean))];
+  if (!requestedEmails.length) return new Map();
+
+  if (Date.now() >= displayNameCache.expiresAt) {
+    const token = await getGraphAccessToken();
+    const namesByEmail = new Map();
+    let url = "https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName&$top=999";
+
+    while (url) {
+      const payload = await getJson(url, token);
+      const users = Array.isArray(payload?.value) ? payload.value : [];
+      for (const user of users) {
+        const displayName = String(user?.displayName || "").trim();
+        const mail = String(user?.mail || "").trim().toLowerCase();
+        const upn = String(user?.userPrincipalName || "").trim().toLowerCase();
+        if (displayName && mail) namesByEmail.set(mail, displayName);
+        if (displayName && upn) namesByEmail.set(upn, displayName);
+      }
+      url = typeof payload?.["@odata.nextLink"] === "string" ? payload["@odata.nextLink"] : "";
+    }
+
+    displayNameCache = { expiresAt: Date.now() + 5 * 60 * 1000, namesByEmail };
+  }
+
+  return new Map(requestedEmails.map((email) => [email, displayNameCache.namesByEmail.get(email) || ""]));
+}
+
 async function listEntraUsers({ search = "", page = 1, limit = 20 } = {}) {
   const token = await getGraphAccessToken();
   const roleByPrincipalName = await getRoleMap(token);
@@ -198,4 +228,4 @@ async function listEntraUsers({ search = "", page = 1, limit = 20 } = {}) {
   return paginate(rows, page, limit);
 }
 
-module.exports = { listEntraUsers };
+module.exports = { listEntraUsers, getEntraDisplayNamesByEmail };
